@@ -1,0 +1,22 @@
+name = "ElasticityAD"
+uuid = "c47353fb-9f42-438e-a7e8-a70e46fe0259"
+authors = ["Haina Wang <hainaw@sas.upenn.edu>"]
+version = "0.1.0"
+
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[compat]
+Documenter = "1.11.4"
+ForwardDiff = "1.0.1"
+Graphs = "1.12.1"
+LinearAlgebra = "1.11.0"
+LoopVectorization = "0.12.172"
+Optim = "1.12.0"
+Statistics = "1.11.1"

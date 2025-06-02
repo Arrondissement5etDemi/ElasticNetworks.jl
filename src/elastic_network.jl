@@ -96,16 +96,30 @@ end
 #__________________________________________________________________________
 """
     elastic_energy(basis, points, egs, rls, iis, youngs)
+    elastic_energy(net)
 
 Computes the total elastic potential energy of a network based on edge deformations.
 
+# Methods:
+- `elastic_energy(basis, points, egs, rls, iis, youngs) → Float64`  
+  Computes the energy using explicitly provided network parameters.
+  
+- `elastic_energy(net) → Float64`  
+  A convenience wrapper that extracts the network parameters using `net_info_primitive(net)`.
+
 # Arguments
 - `basis::Matrix{Float64}` : Basis vectors defining the spatial representation.
-- `points::Vector{Float64}` : Flattened node coordinates for efficient access.
+- `points::Vector{Float64}` : Flattened node coordinates.
 - `egs::Matrix{Int64}` : Edge connections within the network.
-- `rls::Vector{Float64}` : Rest lengths of the edges.
+- `rls::Vector{Float64}` : Rest lengths of edges.
 - `iis::Matrix{Int}` : Image offsets for periodic boundary conditions.
 - `youngs::Vector{Float64}` : Young’s modulus values for each edge.
+- `net::Network` : The network structure containing connectivity, node positions, and edge properties.
+
+# Behavior
+- Iterates over edges, computing their current length and energy contribution.
+- Uses a quadratic potential energy model to determine stored elastic energy.
+- The wrapper function `elastic_energy(net)` simplifies calling the function without manual data extraction.
 
 # Returns
 - `Float64` : The total elastic potential energy of the network.
@@ -130,8 +144,6 @@ function elastic_energy(basis, points, egs, rls, iis, youngs)
     return result/2
 end
 
-"""computes the elastic energy of the network
-"""
 elastic_energy(net) = elastic_energy(net_info_primitive(net)...)
 
 """
@@ -158,9 +170,7 @@ Computes the gradient of the elastic potential energy with respect to node posit
 
 """
 function gradient!(result, basis, points, egs, rls, iis, youngs)
-    for i in eachindex(result)
-        result[i] = 0 #initialize
-    end
+    fill!(result, 0.0)
     n = (Int)(length(points)/3)
     forces = zeros(3, n)
     for k in axes(egs, 2)
@@ -321,7 +331,7 @@ function relax!(net; show_trace = false, g_tol = 1e-6)
     net.points = relax(net; show_trace = show_trace, g_tol = g_tol)[1]
 end
 
-#_____________________________________________________________________________
+#_____________________________________________________________________________network modifiers
 
 function add_edge!(net::Network, s::Int, d::Int, rl::Float64)
     trues = min(s, d)
@@ -370,7 +380,7 @@ function rem_vertex!(net::Network, v::Int)
         end
     end
 end
-#__________________________________________________________________________________________________
+#__________________________________________________________________________________________________helper functions below_____________________
 
 min_direction(x) = findmin(abs.([x - 1, x, x + 1]))[2] - 2
 
