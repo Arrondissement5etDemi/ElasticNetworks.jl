@@ -4,6 +4,32 @@ euc_gra = quick_euclidean_graph(1000, 0.13)
 net = network_from_graph(euc_gra, 10, 0.1)
 end
 
+"""
+    moduli(net)
+
+Computes the elastic moduli of a network by applying small deformations and extracting the stiffness components.
+
+# Description
+This function performs an energy minimization (`relax!`) and then computes elastic moduli using numerical differentiation. The moduli components are obtained by introducing small strain perturbations in various deformation modes and measuring the corresponding energy response.
+
+# Arguments
+- `net::Network` : The network structure containing connectivity, node positions, and edge properties.
+
+# Behavior
+1. **Relaxation** - Minimizes the elastic energy of the network to find a stable configuration.
+2. **Deformation Basis Construction** - Defines strain modes using deformation basis functions.
+3. **Hessian Computation** - Computes the Hessian of the system at equilibrium.
+4. **Energy Perturbation & Differentiation** - Uses automatic differentiation (`ForwardDiff.hessian`) to compute energy responses to small deformations.
+5. **Moduli Extraction** - Computes bulk modulus (`B`), shear modulus (`G`), and individual elastic constants.
+
+# Returns
+- `B::Float64` : Bulk modulus.
+- `G::Float64` : Shear modulus.
+- `c1111::Float64`, `c2222::Float64`, `c3333::Float64` : Normal stress components.
+- `c1212::Float64`, `c1313::Float64`, `c2323::Float64` : Shear stress components.
+- `c1122::Float64`, `c1133::Float64`, `c2233::Float64` : Mixed stress components.
+
+"""
 function moduli(net)
     relax!(net)
     basis, points, edge_nodes, rls, iis, youngs = net_info_primitive(net)
