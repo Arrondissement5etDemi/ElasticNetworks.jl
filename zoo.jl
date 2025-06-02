@@ -1,12 +1,10 @@
 using Roots, Statistics, StatsBase, Random
 include("elastic_network.jl")
 
-function diamond1000(l, rest_length, youngs)
+function diamond1000(l, ϵ)
     g = SimpleGraph(1000)
     basis = [l 0 0; 0 l 0; 0 0 l]
     points = zeros(3, 1000)
-    rest_lengths = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
-    image_info = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Vector{Int}}() 
     for i = 0:4, j = 0:4, k = 0:4
         ind = i*25 + j*5 + k + 1
         corner = [i, j, k]
@@ -25,12 +23,9 @@ function diamond1000(l, rest_length, youngs)
         dij = min_image_vector_rel(points[:, i], points[:, j])
         if norm(dij) - nnd ≤ 1e-4
             add_edge!(g, i, j)
-            e = Edge(i, j)
-            rest_lengths[e] = rest_length
-            image_info[e] = get_image_info(points[:, i], points[:, j])
         end
     end
-    return Network(g, basis, points, rest_lengths, image_info, youngs)
+    return prestrained_network(g, basis, points, ϵ)
 end
 
 function diamond_smallworld(diamond_base::Network, p::Float64, ϵ::Float64, α::Float64 = 3.0)

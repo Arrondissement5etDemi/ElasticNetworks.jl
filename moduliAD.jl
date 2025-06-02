@@ -17,16 +17,15 @@ function moduli(net)
     deformed_bases["1122"] = ϵ -> ([ϵ 0 0; 0 ϵ 0; 0 0 0] + I)*basis
     deformed_bases["1133"] = ϵ -> ([ϵ 0 0; 0 0 0; 0 0 ϵ] + I)*basis
     deformed_bases["2233"] = ϵ -> ([0 0 0; 0 ϵ 0; 0 0 ϵ] + I)*basis
-    points_array = reshape(points, size(net.points))
     n = nv(net.g)
     H = zeros(3*n, 3*n)
     hessian!(H, basis, points, edge_nodes, rls, iis, youngs)
     function make_curry_function(component)
         function curry(ϵ)
             deformed_basis = deformed_bases[component](ϵ[1])
-            F = forces(deformed_basis, points_array, edge_nodes, rls, iis, youngs)
-            u = qr(H, Val(true)) \ collect(Iterators.flatten(F))
-            return elastic_energy(deformed_basis, points + u, edge_nodes, rls, iis, youngs)
+            F = negative_gradient(deformed_basis, reshape(points, size(net.points)), edge_nodes, rls, iis, youngs)
+            nonaffine_displacements = qr(H, Val(true)) \ collect(Iterators.flatten(F))
+            return elastic_energy(deformed_basis, points + nonaffine_displacements, edge_nodes, rls, iis, youngs)
         end
         return curry
     end
@@ -45,19 +44,4 @@ function moduli(net)
     return B, G, c1111, c2222, c3333, c1212, c1313, c2323, c1122, c1133, c2233
 end
 
-function forces(deformed_basis, points, edge_nodes, rls, iis, youngs)
-    f = zeros(size(points))
-    n = size(points, 2)
-    for k in axes(edge_nodes, 1)
-        i, j = edge_nodes[k, 1], edge_nodes[k, 2]
-        dr = deformed_basis*(points[:, j] + iis[k, :] - points[:, i])
-        edge_length_ij = norm(dr)
-        factor = youngs*(edge_length_ij - rls[k])/rls[k]/edge_length_ij
-        miau = factor*dr
-        g = hcat(f[:, 1: i - 1], f[:, i] + miau, f[:, i + 1:n])
-        h = hcat(g[:, 1: j - 1], g[:, j] - miau, g[:, j + 1:n])
-        f = deepcopy(h)
-    end
-    return deformed_basis*f
-end
 
