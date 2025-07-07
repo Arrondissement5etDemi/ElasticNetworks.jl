@@ -1,5 +1,6 @@
 import Pkg; Pkg.add("Documenter")
 using Documenter, ElasticityAD
+push!(LOAD_PATH,"../src/")
 
 makedocs(
     sitename = "ElasticityAD.jl",
@@ -10,5 +11,6 @@ makedocs(
 )
 
 deploydocs(;
-    repo = "github.com/Arrondissement5etDemi/ElasticityAD.jl"
+    repo = "github.com/Arrondissement5etDemi/ElasticityAD.jl",
+    devbranch = "main"
 )

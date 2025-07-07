@@ -10,7 +10,7 @@ end
 Computes the elastic moduli of a network by applying small deformations and extracting the stiffness components.
 
 # Description
-This function performs an energy minimization (`relax!`) and then computes elastic moduli using numerical differentiation. The moduli components are obtained by introducing small strain perturbations in various deformation modes and measuring the corresponding energy response.
+This function performs an energy minimization (`relax!`) and then computes elastic moduli using automatic differentiation. The moduli components are obtained by introducing small strain perturbations in various deformation modes and measuring the corresponding energy response.
 
 # Arguments
 - `net::Network` : The network structure containing connectivity, node positions, and edge properties.
@@ -30,7 +30,7 @@ This function performs an energy minimization (`relax!`) and then computes elast
 - `c1122::Float64`, `c1133::Float64`, `c2233::Float64` : Mixed stress components.
 
 """
-function moduli(net)
+function moduli(net::Network)
     relax!(net)
     basis, points, edge_nodes, rls, iis, youngs = net_info_primitive(net)
     deformed_bases = Dict{String, Function}()
@@ -49,8 +49,8 @@ function moduli(net)
     function make_curry_function(component)
         function curry(ϵ)
             deformed_basis = deformed_bases[component](ϵ[1])
-            F = negative_gradient(deformed_basis, reshape(points, size(net.points)), edge_nodes, rls, iis, youngs)
-            nonaffine_displacements = qr(H, Val(true)) \ collect(Iterators.flatten(F))
+            F = -gradient(deformed_basis, points, edge_nodes, rls, iis, youngs)
+            nonaffine_displacements = qr(H, Val(true)) \ F
             return elastic_energy(deformed_basis, points + nonaffine_displacements, edge_nodes, rls, iis, youngs)
         end
         return curry
@@ -67,6 +67,7 @@ function moduli(net)
     c2233 = ForwardDiff.hessian(make_curry_function("2233"), [0])[1]/(2*v) - (c2222 + c3333)/2
     B = 1/9*(c1111 + c2222 + c3333 + 2*(c1122 + c1133 + c2233))
     G = 1/15*(3*(c1212 + c1313 + c2323) + c1111 + c2222 + c3333 - c1122 - c1133 - c2233)
+    println("B = $B \n G = $G \n c1111 = $c1111 \n c2222 = $c2222 \n c3333 = $c3333 \n c1212 = $c1212 \n c1313 = $c1313 \n c2323 = $c2323 \n c1122 = $c1122 \n c1133 = $c1133 \n c2233 = $c2233")
     return B, G, c1111, c2222, c3333, c1212, c1313, c2323, c1122, c1133, c2233
 end
 

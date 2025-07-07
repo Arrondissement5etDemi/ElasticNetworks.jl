@@ -1,4 +1,4 @@
-using Graphs, LoopVectorization, Optim, LinearAlgebra, Statistics, ForwardDiff
+using Graphs, LoopVectorization, Optim, LinearAlgebra, Statistics, ForwardDiff, ReverseDiff, JLD2
 import Graphs: rem_vertex!, add_edge!, rem_edge!
 
 quick_euclidean_graph(N::Int, cutoff) = euclidean_graph(N, 3; cutoff = cutoff, bc = :periodic)
@@ -89,7 +89,7 @@ SIMD is a parallel computing technique that allows the same operation to be appl
 function net_info_primitive(net::Network)
     egs = hcat(([src(e), dst(e)] for e in edges(net.g))...)
     rls = [net.rest_lengths[e] for e in edges(net.g)]
-    iis = hcat((en.image_info[e] for e in edges(en.g))...)
+    iis = hcat((net.image_info[e] for e in edges(net.g))...)
     youngs = [net.youngs[e] for e in edges(net.g)]
     return net.basis, collect(Iterators.flatten(net.points)), egs, rls, iis, youngs
 end
@@ -169,38 +169,17 @@ Computes the gradient of the elastic potential energy with respect to node posit
 - Modifies `result` in-place with the computed gradient values.
 
 """
-function gradient!(result, basis, points, egs, rls, iis, youngs)
-    fill!(result, 0.0)
-    n = (Int)(length(points)/3)
-    forces = zeros(3, n)
-    for k in axes(egs, 2)
-        i, j = egs[1, k], egs[2, k]
-        i_ind, j_ind = (i - 1)*3, (j - 1)*3 #because points are flattened
-        dx = points[1 + j_ind] + iis[1, k] - points[1 + i_ind]
-        dy = points[2 + j_ind] + iis[2, k] - points[2 + i_ind]
-        dz = points[3 + j_ind] + iis[3, k] - points[3 + i_ind]
-        r1 = basis[1, 1]*dx + basis[1, 2]*dy + basis[1, 3]*dz
-        r2 = basis[2, 1]*dx + basis[2, 2]*dy + basis[2, 3]*dz
-        r3 = basis[3, 1]*dx + basis[3, 2]*dy + basis[3, 3]*dz
-        edge_length_ij = √(r1^2 + r2^2 + r3^2)
-        factor = youngs[k]*(edge_length_ij - rls[k])/rls[k]/edge_length_ij 
-        forces[1, i] -= factor*r1
-        forces[2, i] -= factor*r2
-        forces[3, i] -= factor*r3
-        forces[1, j] += factor*r1
-        forces[2, j] += factor*r2
-        forces[3, j] += factor*r3
-    end
-    res = basis*forces
-    for i in eachindex(result)
-        result[i] = res[i]
+function gradient!(result, basis::AbstractArray{T}, points, egs, rls, iis, youngs) where T
+    g = gradient(basis, points, egs, rls, iis, youngs)
+    for i in eachindex(result) 
+        result[i] = g[i] 
     end
 end
 
 """
-    negative_gradient(basis, points, edge_nodes, rls, iis, youngs)
+    gradient(basis, points, edge_nodes, rls, iis, youngs)
 
-Computes the negative gradient of the elastic energy with respect to node positions, formatted for automatic differentiation (autodiff).
+Computes the gradient of the elastic energy with respect to node positions, formatted for automatic differentiation (autodiff).
 
 # Purpose
 This function avoids mutable arrays to ensure compatibility with autodiff tools. Instead of modifying values in-place, it constructs updated matrices at each iteration.
@@ -217,20 +196,35 @@ This function avoids mutable arrays to ensure compatibility with autodiff tools.
 - `Matrix{Float64}` : The negative gradient of the elastic energy with respect to node positions.
 
 """
-function negative_gradient(basis, points, edge_nodes, rls, iis, youngs)
-    f = zeros(size(points))
-    n = size(points, 2)
+
+function gradient(basis::AbstractArray{T}, points::AbstractArray, edge_nodes, rls, iis, youngs) where T
+    result = zeros(T, size(points))
+    n = (Int)(length(points)/3)
     for k in axes(edge_nodes, 2)
         i, j = edge_nodes[1, k], edge_nodes[2, k]
-        dr = basis*(points[:, j] + iis[:, k] - points[:, i])
-        edge_length_ij = norm(dr)
-        factor = youngs[k]*(edge_length_ij - rls[k])/rls[k]/edge_length_ij
-        force_vector = factor*dr
-        updated_gradient_i = hcat(f[:, 1: i - 1], f[:, i] + force_vector, f[:, i + 1:n])
-        updated_gradient_j = hcat(updated_gradient_i[:, 1: j - 1], updated_gradient_i[:, j] - force_vector, updated_gradient_i[:, j + 1:n])
-        f = deepcopy(updated_gradient_j)
+        i_ind, j_ind = (i - 1)*3, (j - 1)*3 #because points are flattened
+        dx = points[1 + j_ind] + iis[1, k] - points[1 + i_ind]
+        dy = points[2 + j_ind] + iis[2, k] - points[2 + i_ind]
+        dz = points[3 + j_ind] + iis[3, k] - points[3 + i_ind]
+        r1 = basis[1, 1]*dx + basis[1, 2]*dy + basis[1, 3]*dz
+        r2 = basis[2, 1]*dx + basis[2, 2]*dy + basis[2, 3]*dz
+        r3 = basis[3, 1]*dx + basis[3, 2]*dy + basis[3, 3]*dz
+        edge_length_ij = √(r1^2 + r2^2 + r3^2)
+        factor = youngs[k]*(edge_length_ij - rls[k])/rls[k]/edge_length_ij 
+        result[1 + i_ind] -= factor*r1
+        result[2 + i_ind] -= factor*r2
+        result[3 + i_ind] -= factor*r3
+        result[1 + j_ind] += factor*r1
+        result[2 + j_ind] += factor*r2
+        result[3 + j_ind] += factor*r3
     end
-    return basis*f
+    for i in 1:n
+        i_ind = (i - 1)*3
+        result[1 + i_ind] = basis[1, 1]*result[1 + i_ind] + basis[1, 2]*result[2 + i_ind] + basis[1, 3]*result[3 + i_ind]
+        result[2 + i_ind] = basis[2, 1]*result[1 + i_ind] + basis[2, 2]*result[2 + i_ind] + basis[2, 3]*result[3 + i_ind]
+        result[3 + i_ind] = basis[3, 1]*result[1 + i_ind] + basis[3, 2]*result[2 + i_ind] + basis[3, 3]*result[3 + i_ind]
+    end
+    return result
 end
 
 """
@@ -292,6 +286,7 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
         end
     end
 end
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 """
     relax(net; show_trace=false, g_tol=1e-6)
@@ -351,7 +346,7 @@ end
 
 function rem_vertex!(net::Network, v::Int)
     original_n = nv(net.g)
-    Graphs.rem_vertex!(net.g, v)
+    Graphs.rem_vertex!(net.g, v) #Graphs.jl moves the last vertex to index v, so there are now just n - 1 vertices.
     net.points = hcat(net.points[:, 1:v - 1], net.points[:, original_n], net.points[:, v + 1: original_n - 1])
     original_edges = deepcopy(keys(net.rest_lengths))
     new_ind(x) = x > v ? x - 1 : x
@@ -380,6 +375,7 @@ function rem_vertex!(net::Network, v::Int)
         end
     end
 end
+#_________________________________________________________________________________________________
 #__________________________________________________________________________________________________helper functions below_____________________
 
 min_direction(x) = findmin(abs.([x - 1, x, x + 1]))[2] - 2
