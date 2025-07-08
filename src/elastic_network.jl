@@ -218,13 +218,7 @@ function gradient(basis::AbstractArray{T}, points::AbstractArray, edge_nodes, rl
         result[2 + j_ind] += factor*r2
         result[3 + j_ind] += factor*r3
     end
-    for i in 1:n
-        i_ind = (i - 1)*3
-        result[1 + i_ind] = basis[1, 1]*result[1 + i_ind] + basis[1, 2]*result[2 + i_ind] + basis[1, 3]*result[3 + i_ind]
-        result[2 + i_ind] = basis[2, 1]*result[1 + i_ind] + basis[2, 2]*result[2 + i_ind] + basis[2, 3]*result[3 + i_ind]
-        result[3 + i_ind] = basis[3, 1]*result[1 + i_ind] + basis[3, 2]*result[2 + i_ind] + basis[3, 3]*result[3 + i_ind]
-    end
-    return result
+    return collect(Iterators.flatten(basis*reshape(result, (3, n))))
 end
 
 """
@@ -253,7 +247,10 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
     N = div(length(points), 3)  # Number of nodes
     fill!(H, 0.0)  # Ensure H starts from zero
     I3 = Matrix{Float64}(I, 3, 3)  # 3×3 identity matrix
-    for k in axes(egs, 2)
+    bt = transpose(basis)
+    ne = size(egs, 2)
+    u_array = zeros(4, ne)
+    for k in 1:ne
         i, j = egs[1, k], egs[2, k]
         i_ind, j_ind = (i - 1) * 3, (j - 1) * 3
         # Compute displacement with periodic adjustments
@@ -261,22 +258,25 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
         dy = points[2 + j_ind] + iis[2, k] - points[2 + i_ind]
         dz = points[3 + j_ind] + iis[3, k] - points[3 + i_ind]
         # Transform displacement into basis coordinates
-        r_local = [
-            basis[1, 1] * dx + basis[1, 2] * dy + basis[1, 3] * dz,
-            basis[2, 1] * dx + basis[2, 2] * dy + basis[2, 3] * dz,
-            basis[3, 1] * dx + basis[3, 2] * dy + basis[3, 3] * dz
-        ]
-        L = norm(r_local)  
-        # Avoid division by zero
-        if L == 0.0
-            continue
-        end       
+        r_local_x = basis[1, 1] * dx + basis[1, 2] * dy + basis[1, 3] * dz
+        r_local_y = basis[2, 1] * dx + basis[2, 2] * dy + basis[2, 3] * dz
+        r_local_z = basis[3, 1] * dx + basis[3, 2] * dy + basis[3, 3] * dz
+        L = √(r_local_x^2 + r_local_y^2 + r_local_z^2)
         # Compute unit vector
-        u = r_local / L
+        u_array[1, k] = r_local_x / L
+        u_array[2, k] = r_local_y / L
+        u_array[3, k] = r_local_z / L
+        u_array[4, k] = L
+    end
+    for k in 1:ne
+        i, j = egs[1, k], egs[2, k]
+        i_ind, j_ind = (i - 1) * 3, (j - 1) * 3
         # Compute local Hessian
-        H_local = (youngs[k] / rls[k]) * (I3 + (rls[k] / L) * (u * u' - I3))
+        u = u_array[1:3, k]
+        L = u_array[4, k]
+        H_local = (youngs[k] / rls[k]) * (I3 + (rls[k] / L) * (u * transpose(u) - I3))
         # Transform to global coordinates
-        H_block = basis * H_local * transpose(basis)
+        H_block = basis * H_local * bt
         # Scatter into pre-allocated Hessian
         for α in 1:3, β in 1:3
             H[i_ind + α, i_ind + β] += H_block[α, β]
