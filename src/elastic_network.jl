@@ -1,4 +1,4 @@
-using Graphs, LoopVectorization, Optim, LinearAlgebra, Statistics, ForwardDiff, ReverseDiff, JLD2
+using Graphs, LoopVectorization, Optim, LinearAlgebra, Statistics, ForwardDiff, ReverseDiff, JLD2, GLMakie
 import Graphs: rem_vertex!, add_edge!, rem_edge!
 
 quick_euclidean_graph(N::Int, cutoff) = euclidean_graph(N, 3; cutoff = cutoff, bc = :periodic)
@@ -7,7 +7,7 @@ quick_euclidean_graph(points::Matrix{Float64}, cutoff) = euclidean_graph(points;
 """
     mutable struct Network
 
-Represents a network of interconnected nodes with physical properties such as rest lengths and elasticity.
+Models a Hookean spring network.
 
 # Fields
 - `g::SimpleGraph` : Graph specifying the connectivity of the network.
@@ -349,33 +349,56 @@ function rem_vertex!(net::Network, v::Int)
     Graphs.rem_vertex!(net.g, v) #Graphs.jl moves the last vertex to index v, so there are now just n - 1 vertices.
     net.points = hcat(net.points[:, 1:v - 1], net.points[:, original_n], net.points[:, v + 1: original_n - 1])
     original_edges = deepcopy(keys(net.rest_lengths))
-    new_ind(x) = x > v ? x - 1 : x
     for e in original_edges
         s, d = src(e), dst(e)
         if s == v || d == v
             delete!(net.rest_lengths, e)
             delete!(net.image_info, e)
+            delete!(net.youngs, e)
             continue
         end
-        if s == original_n
+        if s == original_n || d == original_n
             rl = pop!(net.rest_lengths, e)
             ii = pop!(net.image_info, e)
-            new_s, new_d = min(v, d), max(v, d)
+            y = pop!(net.youngs, e)
+            if s == original_n
+                new_s, new_d = min(v, d), max(v, d)
+                iisign = new_d == d ? 1 : -1
+            else
+                new_s, new_d = min(s, v), max(s, v)
+                iisign = new_s == s ? 1 : -1 
+            end
             net.rest_lengths[Edge(new_s, new_d)] = rl
-            iisign = new_d == d ? 1 : -1
             net.image_info[Edge(new_s, new_d)] = iisign*ii
-        end
-        if d == original_n
-            rl = pop!(net.rest_lengths, e)
-            ii = pop!(net.image_info, e)
-            new_s, new_d = min(s, v), max(s, v)
-            net.rest_lengths[Edge(new_s, new_d)] = rl
-            iisign = new_s == s ? 1 : -1 
-            net.image_info[Edge(new_s, new_d)] = iisign*ii
+            net.youngs[Edge(new_s, new_d)] = y
         end
     end
 end
-#_________________________________________________________________________________________________
+
+function simplify_net(net::Network)
+    result = deepcopy(net)
+    i = 1
+    while i ≤ nv(result.g)
+        if degree(result.g, i) in [0, 1]
+            rem_vertex!(result, i)
+        else
+            i += 1
+        end
+    end
+    return result
+end
+
+function simplify_net!(net::Network)
+    i = 1
+    while i ≤ nv(net.g)
+        if degree(net.g, i) in [0, 1]
+            rem_vertex!(net, i)
+        else
+            i += 1
+        end
+    end
+end
+
 #__________________________________________________________________________________________________helper functions below_____________________
 
 min_direction(x) = findmin(abs.([x - 1, x, x + 1]))[2] - 2
