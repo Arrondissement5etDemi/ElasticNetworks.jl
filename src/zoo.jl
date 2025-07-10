@@ -28,6 +28,13 @@ function diamond1000(l, ϵ)
     return prestrained_network(g, basis, points, ϵ)
 end
 
+function cubic_network(l, n_layers::Int, ϵ = 0)
+    g = SimpleGraph(n_layers^3)
+    basis = [l 0 0; 0 l 0; 0 0 l]
+    points = zeros(3, n_layers^3)
+    
+end
+
 function diamond_smallworld(diamond_base::Network, p::Float64, ϵ::Float64, α::Float64 = 3.0)
     result = deepcopy(diamond_base)
     diamond_copy = deepcopy(diamond_base)

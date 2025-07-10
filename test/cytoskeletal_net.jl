@@ -19,3 +19,7 @@ function load_network(filename)
     end
     return Network(g, basis, points, rest_lengths, image_info, youngs)
 end
+
+function cytoskeleton_net()
+    return load_network("test/threshold0x001_conc0.5_maxrl3_epsilon0x05_17500.jld2")
+end

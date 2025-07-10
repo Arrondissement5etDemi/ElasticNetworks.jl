@@ -342,6 +342,7 @@ function rem_edge!(net::Network, s::Int, d::Int)
     e = Edge(min(s, d), max(s, d))
     pop!(net.rest_lengths, e)
     pop!(net.image_info, e)
+    pop!(net.youngs, e)
 end
 
 function rem_vertex!(net::Network, v::Int)
@@ -395,6 +396,14 @@ function simplify_net!(net::Network)
             rem_vertex!(net, i)
         else
             i += 1
+        end
+    end
+    tens = tensions(net)
+    es = collect(edges(net.g))
+    for i in eachindex(es)
+        e = es[i]
+        if tens[i] < 1e-6
+            rem_edge!(net, src(e), dst(e))
         end
     end
 end
