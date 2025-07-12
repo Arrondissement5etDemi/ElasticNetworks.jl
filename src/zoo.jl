@@ -67,7 +67,7 @@ function cubic_network(l, n_layers::Int, ϵ = 0)
     nnd = 1/n_layers
     for i in 1:n, j in i + 1:n
         dij = min_image_vector_rel(points[:, i], points[:, j])
-        if norm(dij) - nnd ≤ 1e-4
+        if abs(norm(dij) - nnd) ≤ 1e-4
             add_edge!(g, i, j)
         end
     end

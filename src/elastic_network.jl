@@ -367,19 +367,25 @@ function rem_vertex!(net::Network, v::Int)
     end
 end
 
-function pluck_out_edge!(net::Network, e, direction::Function)
+function pluck_out_edge!(net::Network, e::Edge, direction::Function)
     affected_node = direction(e)
     anchoring = setdiff([src, dst], [direction])[1]
     anchoring_node = anchoring(e)
     affected_coord = net.points[:, affected_node]
     add_vertex!(net.g)
     net.points = hcat(net.points, affected_coord)
-    add_edge!(net, anchoring_node, nv(g), net.rest_lengths[e], net.youngs[e])
-    rem_edge!(net, e)
+    add_edge!(net, anchoring_node, nv(net.g), net.rest_lengths[e], net.youngs[e])
+    rem_edge!(net, src(e), dst(e))
 end
 
-function merge_deg1_nodes(net::Network, node1, node2)
-
+function merge_deg1_nodes!(net::Network, deg1node, accepting_node)
+    anchoring_node = neighbors(net.g, deg1node)[1] 
+    e = Edge(deg1node, anchoring_node)
+    if !(e in keys(net.rest_lengths))
+        e = Edge(anchoring_node, deg1node)
+    end
+    add_edge!(net, anchoring_node, accepting_node, net.rest_lengths[e], net.youngs[e])
+    rem_vertex!(net, deg1node)
 end
 
 function simplify_net!(net::Network)

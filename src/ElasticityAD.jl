@@ -6,6 +6,7 @@ module ElasticityAD
     export(energy_hessian)
     export(relax)
     export(relax!)
+    export(pluck_out_edge!)
     export(simplify_net!)
     export(moduli)
     export(visualize_net)
