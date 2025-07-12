@@ -339,7 +339,11 @@ end
 function rem_vertex!(net::Network, v::Int)
     original_n = nv(net.g)
     Graphs.rem_vertex!(net.g, v) #Graphs.jl moves the last vertex to index v, so there are now just n - 1 vertices.
-    net.points = hcat(net.points[:, 1:v - 1], net.points[:, original_n], net.points[:, v + 1: original_n - 1])
+    if v ≠ original_n
+        net.points = hcat(net.points[:, 1:v - 1], net.points[:, original_n], net.points[:, v + 1: original_n - 1])
+    else
+        net.points = net.points[:, 1:v - 1]
+    end
     original_edges = deepcopy(keys(net.rest_lengths))
     for e in original_edges
         s, d = src(e), dst(e)
@@ -384,8 +388,10 @@ function merge_deg1_nodes!(net::Network, deg1node::Int, accepting_node::Int)
     if !(e in keys(net.rest_lengths))
         e = Edge(anchoring_node, deg1node)
     end
+    println(e)
     add_edge!(net, anchoring_node, accepting_node, net.rest_lengths[e], net.youngs[e])
     rem_vertex!(net, deg1node)
+    println(size(net.points))
 end
 
 function simplify_net!(net::Network)
