@@ -378,7 +378,7 @@ function pluck_out_edge!(net::Network, e::Edge, direction::Function)
     rem_edge!(net, src(e), dst(e))
 end
 
-function merge_deg1_nodes!(net::Network, deg1node, accepting_node)
+function merge_deg1_nodes!(net::Network, deg1node::Int, accepting_node::Int)
     anchoring_node = neighbors(net.g, deg1node)[1] 
     e = Edge(deg1node, anchoring_node)
     if !(e in keys(net.rest_lengths))
