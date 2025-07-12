@@ -26,6 +26,17 @@ mutable struct Network
     youngs :: Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64} 
 end
 
+
+function mean_degree(net::Network)
+    degs = degree(net.g)
+    filter!(x -> x ≥ 3, degs)
+    if length(degs) ≥ 1
+        return mean(degs)
+    else
+        return 0 
+    end
+end
+
 function strains(net)
     euclidean_dist(v1::Int, v2::Int) = norm(net.basis*min_image_vector_rel(net.points[:, v1], net.points[:, v2]))
     return [abs((euclidean_dist(k.src, k.dst) - net.rest_lengths[k])/net.rest_lengths[k]) for k in edges(net.g)]
@@ -307,13 +318,14 @@ end
 
 #_____________________________________________________________________________network modifiers
 
-function add_edge!(net::Network, s::Int, d::Int, rl::Float64)
+function add_edge!(net::Network, s::Int, d::Int, rl::Float64, y = 1.0)
     trues = min(s, d)
     trued = max(s, d)
     add_edge!(net.g, trues, trued)
     e = Edge(trues, trued)
     net.rest_lengths[e] = rl
     net.image_info[e] = get_image_info(net.points[:, trues], net.points[:, trued])
+    net.youngs[e] = y
 end
 
 function rem_edge!(net::Network, s::Int, d::Int)
@@ -355,22 +367,40 @@ function rem_vertex!(net::Network, v::Int)
     end
 end
 
+function pluck_out_edge(net::Network, e, direction)
+
+end
+
+function merge_deg1_nodes(net::Network, node1, node2)
+
+end
+
 function simplify_net!(net::Network)
-    i = 1
-    while i ≤ nv(net.g)
-        if degree(net.g, i) in [0, 1]
-            rem_vertex!(net, i)
-        else
-            i += 1
+    nv_old = nv(net.g)
+    nv_new = nv_old - 1
+    ne_old = ne(net.g)
+    ne_new = ne_old - 1
+    while nv_old > nv_new && ne_old > ne_new
+        i = 1
+        while i ≤ nv(net.g)
+            if degree(net.g, i) in [0, 1]
+                rem_vertex!(net, i)
+            else
+                i += 1
+            end
         end
-    end
-    tens = tensions(net)
-    es = collect(edges(net.g))
-    for i in eachindex(es)
-        e = es[i]
-        if tens[i] < 1e-6
-            rem_edge!(net, src(e), dst(e))
+        tens = tensions(net)
+        es = collect(edges(net.g))
+        for j in eachindex(es)
+            e = es[j]
+            if abs(tens[j]) < 1e-6
+                rem_edge!(net, src(e), dst(e))
+            end
         end
+        nv_old = nv_new
+        nv_new = nv(net.g)
+        ne_old = ne_new
+        ne_new = ne(net.g)
     end
 end
 

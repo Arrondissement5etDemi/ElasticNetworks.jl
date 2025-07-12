@@ -4,7 +4,8 @@ function visualize_net(net::Network, edgecolors = "tension")
     set_theme!(backgroundcolor = :gray)
     f = Figure(size = (600, 600))
     tens = tensions(net)
-    tension_range = mean(tensions(net))
+    tension_range = maximum(tens)
+    tens /= tension_range
     data = []
     tension_data = zeros(0)
     Axis3(f[1, 1], limits = (0, net.basis[1,1], 0, net.basis[2,2], 0, net.basis[3,3]), aspect = (1, 1, 1))

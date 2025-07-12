@@ -1,8 +1,5 @@
 include("elastic_network.jl")
-function main()
-euc_gra = quick_euclidean_graph(1000, 0.13)
-net = network_from_graph(euc_gra, 10, 0.1)
-end
+using IterativeSolvers
 
 """
     moduli(net)
@@ -32,6 +29,7 @@ This function performs an energy minimization (`relax!`) and then computes elast
 """
 function moduli(net::Network)
     relax!(net)
+    simplify_net!(net)
     basis, points, edge_nodes, rls, iis, youngs = net_info_primitive(net)
     deformed_bases = Dict{String, Function}()
     deformed_bases["1111"] = ϵ -> ([ϵ 0 0; 0 0 0; 0 0 0] + I)*basis
@@ -50,7 +48,7 @@ function moduli(net::Network)
         function curry(ϵ)
             deformed_basis = deformed_bases[component](ϵ[1])
             F = -gradient(deformed_basis, points, edge_nodes, rls, iis, youngs)
-            nonaffine_displacements = qr(H, ColumnNorm()) \ F
+            nonaffine_displacements = qr(H, Val(true)) \ F
             return elastic_energy(deformed_basis, points + nonaffine_displacements, edge_nodes, rls, iis, youngs)
         end
         return curry

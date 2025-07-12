@@ -88,6 +88,30 @@ function disordered_cubic_network(l, n_layers, disorder_param, ϵ)
     return result
 end
 
+function er(l, points, z, ϵ)
+    basis = I(3)*l
+    nv = size(points, 2)
+    g = SimpleGraph(nv, 0)
+    z_now = 0
+    rest_lengths = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
+    image_info = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Vector{Int}}()
+    youngs = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
+    result = Network(g, basis, points, rest_lengths, image_info, youngs)
+    while z_now < z
+        n1 = rand(1:nv)
+        n2 = rand(setdiff(1:nv, [n1]))
+        n1, n2 = min(n1, n2), max(n1, n2)
+        v1 = points[:, n1]
+        v2 = points[:, n2]
+        rl = norm(basis*min_image_vector_rel(v1, v2))*(1 - ϵ)
+        if rl < l/2
+            add_edge!(result, n1, n2, rl)
+        end
+        z_now = mean_degree(result)
+    end
+    return result
+end
+
 function diamond_smallworld(diamond_base::Network, p::Float64, ϵ::Float64, α::Float64 = 3.0)
     result = deepcopy(diamond_base)
     diamond_copy = deepcopy(diamond_base)
