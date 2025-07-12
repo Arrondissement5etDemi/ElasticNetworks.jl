@@ -2,7 +2,6 @@ using Graphs, LoopVectorization, Optim, LinearAlgebra, Statistics, ForwardDiff, 
 import Graphs: rem_vertex!, add_edge!, rem_edge!
 
 quick_euclidean_graph(N::Int, cutoff) = euclidean_graph(N, 3; cutoff = cutoff, bc = :periodic)
-quick_euclidean_graph(points::Matrix{Float64}, cutoff) = euclidean_graph(points; cutoff = cutoff, bc = :periodic)
 
 """
     mutable struct Network
@@ -25,34 +24,6 @@ mutable struct Network
     rest_lengths :: Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64} 
     image_info :: Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Vector{Int}} 
     youngs :: Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64} 
-end
-
-"""
-    prestrained_network(g, basis, points, ϵ, default_youngs=1.0)
-
-Creates a `Network` with prestrained edges based on the provided graph, basis vectors, and node coordinates.
-
-# Arguments
-- `g::SimpleGraph` : Graph specifying the connectivity of the network.
-- `basis::Matrix{Float64}` : Basis vectors defining the space in which the nodes are embedded.
-- `points::Matrix{Float64}` : Coordinates of the nodes.
-- `ϵ::Float64` : Prestrain factor, adjusting the rest lengths of spring edges.
-- `default_youngs::Float64` (optional, default = 1.0) : Default Young’s modulus assigned to all edges.
-
-# Returns
-- `Network` : A network with computed rest lengths, image information for periodic boundaries, and Young's modulus values for each edge.
-
-"""
-function prestrained_network(g, basis, points, ϵ, default_youngs = 1.0)
-    rest_lengths = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
-    image_info = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Vector{Int}}()
-    youngs = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
-    for e in edges(g)
-        image_info[e] = get_image_info(points[:, src(e)], points[:, dst(e)])
-        rest_lengths[e] = norm(basis*min_image_vector_rel(points[:, src(e)], points[:, dst(e)]))*(1/(1 + ϵ))
-        youngs[e] = default_youngs
-    end
-    return Network(g, basis, points, rest_lengths, image_info, youngs)
 end
 
 function strains(net)
@@ -221,6 +192,8 @@ function gradient(basis::AbstractArray{T}, points::AbstractArray, edge_nodes, rl
     return collect(Iterators.flatten(basis*reshape(result, (3, n))))
 end
 
+energy_gradient(args...) = gradient(args...)
+
 """
     hessian!(H, basis, points, egs, rls, iis, youngs)
 
@@ -285,6 +258,12 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
             H[j_ind + α, i_ind + β] -= H_block[α, β]
         end
     end
+end
+
+function energy_hessian(basis, points, egs, rls, iis, youngs)
+    H = zeros(length(points), length(points))
+    hessian!(H, basis, points, egs, rls, iis, youngs)
+    return H
 end
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -374,19 +353,6 @@ function rem_vertex!(net::Network, v::Int)
             net.youngs[Edge(new_s, new_d)] = y
         end
     end
-end
-
-function simplify_net(net::Network)
-    result = deepcopy(net)
-    i = 1
-    while i ≤ nv(result.g)
-        if degree(result.g, i) in [0, 1]
-            rem_vertex!(result, i)
-        else
-            i += 1
-        end
-    end
-    return result
 end
 
 function simplify_net!(net::Network)

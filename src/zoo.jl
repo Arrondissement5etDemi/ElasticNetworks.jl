@@ -1,5 +1,32 @@
 using Roots, Statistics, StatsBase, Random
-include("elastic_network.jl")
+
+"""
+    prestrained_network(g, basis, points, ϵ, default_youngs=1.0)
+
+Creates a `Network` with prestrained edges based on the provided graph, basis vectors, and node coordinates.
+
+# Arguments
+- `g::SimpleGraph` : Graph specifying the connectivity of the network.
+- `basis::Matrix{Float64}` : Basis vectors defining the space in which the nodes are embedded.
+- `points::Matrix{Float64}` : Coordinates of the nodes.
+- `ϵ::Float64` : Prestrain factor, adjusting the rest lengths of spring edges.
+- `default_youngs::Float64` (optional, default = 1.0) : Default Young’s modulus assigned to all edges.
+
+# Returns
+- `Network` : A network with computed rest lengths, image information for periodic boundaries, and Young's modulus values for each edge.
+
+"""
+function prestrained_network(g, basis, points, ϵ, default_youngs = 1.0)
+    rest_lengths = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
+    image_info = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Vector{Int}}()
+    youngs = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
+    for e in edges(g)
+        image_info[e] = get_image_info(points[:, src(e)], points[:, dst(e)])
+        rest_lengths[e] = norm(basis*min_image_vector_rel(points[:, src(e)], points[:, dst(e)]))*(1/(1 + ϵ))
+        youngs[e] = default_youngs
+    end
+    return Network(g, basis, points, rest_lengths, image_info, youngs)
+end
 
 function diamond1000(l, ϵ)
     g = SimpleGraph(1000)
@@ -29,10 +56,36 @@ function diamond1000(l, ϵ)
 end
 
 function cubic_network(l, n_layers::Int, ϵ = 0)
-    g = SimpleGraph(n_layers^3)
+    n = n_layers^3
+    g = SimpleGraph(n)
     basis = [l 0 0; 0 l 0; 0 0 l]
     points = zeros(3, n_layers^3)
-    
+    for i = 0:n_layers - 1, j = 0:n_layers - 1, k = 0:n_layers - 1
+        ind = i*n_layers^2 + j*n_layers + k + 1
+        points[:, ind] = [i, j, k]/n_layers
+    end
+    nnd = 1/n_layers
+    for i in 1:n, j in i + 1:n
+        dij = min_image_vector_rel(points[:, i], points[:, j])
+        if norm(dij) - nnd ≤ 1e-4
+            add_edge!(g, i, j)
+        end
+    end
+    return prestrained_network(g, basis, points, ϵ)
+end
+
+function disordered_cubic_network(l, n_layers, disorder_param, ϵ)
+    result = cubic_network(l, n_layers, ϵ)
+    unit_cell_length = 1/n_layers
+    for i in axes(result.points, 2)
+        result.points[:, i] += rand(3)*unit_cell_length*disorder_param
+    end
+    for e in edges(result.g)
+        s, d = src(e), dst(e)
+        result.rest_lengths[e] = norm(result.basis*(result.points[:, d] - result.points[:, s] + result.image_info[e]))*(1 - ϵ)
+    end
+    relax!(result)
+    return result
 end
 
 function diamond_smallworld(diamond_base::Network, p::Float64, ϵ::Float64, α::Float64 = 3.0)
@@ -150,4 +203,28 @@ function survey_dsw(p::Float64, targ_tension::Float64, samples::Int)
         B, G = moduli(dsw)[1:2]
         println("$B $G $(maximum(values(tensions(dsw))))")
     end
+end
+
+function load_network(filename)
+    b_data = load(filename)
+    basis = b_data["basis"]
+    points = b_data["nodes"]
+    nv = size(points, 2)
+    rest_lengths = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
+    image_info = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Vector{Int}}()
+    youngs = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
+    g = SimpleGraph(nv)
+    for row in eachrow(b_data["edge_info"])
+        true_src, true_dst = sort(Int.(row[1:2]))
+        Graphs.add_edge!(g, true_src, true_dst)
+        e = Edge(true_src, true_dst)
+        rest_lengths[e] = row[6]
+        image_info[e] = sign(row[2] - row[1])*row[3:5]
+        youngs[e] = 1.0
+    end
+    return Network(g, basis, points, rest_lengths, image_info, youngs)
+end
+
+function cytoskeleton_net()
+    return load_network("../data/threshold0x001_conc0.5_maxrl3_epsilon0x05_17500.jld2")
 end

@@ -1,5 +1,3 @@
-include("elastic_network.jl")
-
 function visualize_net(net::Network, edgecolors = "tension")
     es = collect(edges(net.g))
     ps = net.points

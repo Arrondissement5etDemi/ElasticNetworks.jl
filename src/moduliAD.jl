@@ -50,7 +50,7 @@ function moduli(net::Network)
         function curry(ϵ)
             deformed_basis = deformed_bases[component](ϵ[1])
             F = -gradient(deformed_basis, points, edge_nodes, rls, iis, youngs)
-            nonaffine_displacements = qr(H, Val(true)) \ F
+            nonaffine_displacements = qr(H, ColumnNorm()) \ F
             return elastic_energy(deformed_basis, points + nonaffine_displacements, edge_nodes, rls, iis, youngs)
         end
         return curry
@@ -70,5 +70,7 @@ function moduli(net::Network)
     println("B = $B \n G = $G \n c1111 = $c1111 \n c2222 = $c2222 \n c3333 = $c3333 \n c1212 = $c1212 \n c1313 = $c1313 \n c2323 = $c2323 \n c1122 = $c1122 \n c1133 = $c1133 \n c2233 = $c2233")
     return B, G, c1111, c2222, c3333, c1212, c1313, c2323, c1122, c1133, c2233
 end
+
+
 
 
