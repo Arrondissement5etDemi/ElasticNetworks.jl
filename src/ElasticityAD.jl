@@ -7,6 +7,7 @@ module ElasticityAD
     export(relax)
     export(relax!)
     export(pluck_out_edge!)
+    export(merge_deg1_nodes!)
     export(simplify_net!)
     export(moduli)
     export(visualize_net)
