@@ -26,7 +26,18 @@ mutable struct Network
     youngs :: Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64} 
 end
 
+"""
+    mean_degree(net::Network) → Float64
 
+Returns the average degree of nodes in the elastic network `net` that have degree ≥ 3.
+
+# Arguments
+- `net::Network` : An elastic network 
+
+# Returns
+- `Float64` : The mean degree of qualifying nodes, or `0.0` if none meet the threshold.
+
+"""
 function mean_degree(net::Network)
     degs = degree(net.g)
     filter!(x -> x ≥ 3, degs)
@@ -37,11 +48,35 @@ function mean_degree(net::Network)
     end
 end
 
+"""
+    strains(net::Network) → Vector{Float64}
+
+Computes the edge-wise strain magnitudes in the elastric network `net`, defined as the absolute relative deviation from rest length for each edge.
+
+# Arguments
+- `net::Network` :  An elastic network 
+
+# Returns
+- `Vector{Float64}` : A vector of strain values for each edge in `net`.
+
+"""
 function strains(net)
     euclidean_dist(v1::Int, v2::Int) = norm(net.basis*min_image_vector_rel(net.points[:, v1], net.points[:, v2]))
     return [abs((euclidean_dist(k.src, k.dst) - net.rest_lengths[k])/net.rest_lengths[k]) for k in edges(net.g)]
 end
 
+"""
+    tensions(net::Network) → Vector{Float64}
+
+Computes the edge-wise tensions in the elastic network `net`, defined as the product of strain and Young’s modulus for each edge.
+
+# Arguments
+- `net::Network` : An elastic network
+
+# Returns
+- `Vector{Float64}` : A vector of tension values for each edge in `net`.
+
+"""
 function tensions(net)
     σij = strains(net)
     yij = [net.youngs[e] for e in edges(net.g)]
@@ -51,7 +86,7 @@ end
 """
     net_info_primitive(net::Network)
 
-Converts network data into numerical matrices containing only primitive types, enabling efficient SIMD (Single Instruction, Multiple Data) operations.
+Converts network data into numerical matrices containing only primitive types, enabling efficient SIMD (Single Instruction, Multiple Data) operations if desired.
 
 # What is SIMD?
 SIMD is a parallel computing technique that allows the same operation to be applied to multiple data points simultaneously. By structuring data for SIMD, numerical computations can be executed faster by leveraging modern processor optimizations.
@@ -76,37 +111,6 @@ function net_info_primitive(net::Network)
     return net.basis, collect(Iterators.flatten(net.points)), egs, rls, iis, youngs
 end
 #__________________________________________________________________________
-"""
-    elastic_energy(basis, points, egs, rls, iis, youngs)
-    elastic_energy(net)
-
-Computes the total elastic potential energy of a network based on edge deformations.
-
-# Methods:
-- `elastic_energy(basis, points, egs, rls, iis, youngs) → Float64`  
-  Computes the energy using explicitly provided network parameters.
-  
-- `elastic_energy(net) → Float64`  
-  A convenience wrapper that extracts the network parameters using `net_info_primitive(net)`.
-
-# Arguments
-- `basis::Matrix{Float64}` : Basis vectors defining the spatial representation.
-- `points::Vector{Float64}` : Flattened node coordinates.
-- `egs::Matrix{Int64}` : Edge connections within the network.
-- `rls::Vector{Float64}` : Rest lengths of edges.
-- `iis::Matrix{Int}` : Image offsets for periodic boundary conditions.
-- `youngs::Vector{Float64}` : Young’s modulus values for each edge.
-- `net::Network` : The network structure containing connectivity, node positions, and edge properties.
-
-# Behavior
-- Iterates over edges, computing their current length and energy contribution.
-- Uses a quadratic potential energy model to determine stored elastic energy.
-- The wrapper function `elastic_energy(net)` simplifies calling the function without manual data extraction.
-
-# Returns
-- `Float64` : The total elastic potential energy of the network.
-
-"""
 function elastic_energy(basis, points, egs, rls, iis, youngs)
     result = 0
     for k in axes(egs, 2)
@@ -126,32 +130,21 @@ function elastic_energy(basis, points, egs, rls, iis, youngs)
     return result/2
 end
 
-elastic_energy(net) = elastic_energy(net_info_primitive(net)...)
-
 """
-    gradient!(result, basis, points, egs, rls, iis, youngs)
-    gradient(basis, points, edge_nodes, rls, iis, youngs)
+    elastic_energy(net::Network) → Float64
 
-Computes the gradient of the elastic potential energy with respect to node positions and stores the result in-place.
+Computes the total elastic potential energy of the elastic network `net`, based on pairwise edge deformations relative to their rest lengths.
 
 # Arguments
-- `result::Vector{Float64}` : Pre-allocated vector to store the computed gradient.
-- `basis::Matrix{Float64}` : Basis vectors defining the spatial representation.
-- `points::Vector{Float64}` : Flattened node coordinates for efficient access.
-- `egs::Matrix{Int64}` : Edge connections within the network.
-- `rls::Vector{Float64}` : Rest lengths of the edges.
-- `iis::Matrix{Int}` : Image offsets for periodic boundary conditions.
-- `youngs::Vector{Float64}` : Young’s modulus values for each edge.
-
-# Behavior
-- Initializes `result` to zero before computing forces.
-- Iterates over edges, calculating displacements and forces using the basis transformation.
-- Accumulates forces for each node pair and stores the final transformed values in `result`.
+- `net::Network` : An elastic network
 
 # Returns
-- Modifies `result` in-place with the computed gradient values.
+- `Float64` : Total elastic energy stored in the network
 
 """
+
+elastic_energy(net::Network) = elastic_energy(net_info_primitive(net)...)
+
 function gradient!(result, basis::AbstractArray{T}, points, egs, rls, iis, youngs) where T
     g = gradient(basis, points, egs, rls, iis, youngs)
     for i in eachindex(result) 
@@ -183,30 +176,20 @@ function gradient(basis::AbstractArray{T}, points::AbstractArray, edge_nodes, rl
     return collect(Iterators.flatten(basis*reshape(result, (3, n))))
 end
 
-energy_gradient(net) = gradient(net_info_primitive(net)...)
-
 """
-    hessian!(H, basis, points, egs, rls, iis, youngs)
+    energy_gradient(net::Network) → Vector{Float64}
 
-Computes the Hessian matrix (the second derivative with respect to node positions) of the elastic potential energy in place.
+Computes the gradient of the elastic energy in the elastic network `net`, evaluated with respect to node positions.
 
 # Arguments
-- `H::Matrix{Float64}` : Pre-allocated (3N × 3N) matrix that will be modified in-place.
-- `basis::Matrix{Float64}` : Basis vectors defining the spatial representation.
-- `points::Vector{Float64}` : Flattened node coordinates (length = 3N).
-- `egs::Matrix{Int64}` : Edge connections within the network.
-- `rls::Vector{Float64}` : Rest lengths for each edge.
-- `iis::Matrix{Int}` : Image offsets for periodic boundary conditions.
-- `youngs::Vector{Float64}` : Young’s modulus values for each edge.
-
-# Behavior
-- Modifies the Hessian `H` directly instead of allocating a new matrix.
-- Each edge contributes a 3×3 block that is scattered into the global matrix.
+- `net::Network` : An elastic network
 
 # Returns
-- The Hessian matrix `H` is updated in-place.
+- `Vector{Float64}` : The energy gradient vector over all nodes in `net`
 
 """
+energy_gradient(net) = gradient(net_info_primitive(net)...)
+
 function hessian!(H, basis, points, egs, rls, iis, youngs)
     N = div(length(points), 3)  # Number of nodes
     fill!(H, 0.0)  # Ensure H starts from zero
@@ -251,6 +234,18 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
     end
 end
 
+"""
+    energy_hessian(net::Network) → Matrix{Float64}
+
+Computes the Hessian matrix of the elastic energy in the elastic network `net`, representing second derivatives of the energy with respect to node positions.
+
+# Arguments
+- `net::Network` : An elastic network
+
+# Returns
+- `Matrix{Float64}` : The elastic energy Hessian matrix for `net`
+
+"""
 function energy_hessian(net)
     n = length(net.points)
     H = zeros(n, n)
@@ -298,7 +293,24 @@ function relax!(net; show_trace = false, g_tol = 1e-6)
 end
 
 #_____________________________________________________________________________network modifiers
+"""
+    add_edge!(net::Network, s::Int, d::Int, rl::Float64, y::Float64 = 1.0) → Nothing
 
+Adds an undirected harmonic spring edge to the elastic network `net` between nodes `s` (source) and `d` (destination), with specified rest length `rl` and optional Young’s modulus `y`.
+
+Although the edge is physically symmetric, the `(s, d)` convention provides directional consistency in the data structure and indexing.
+
+# Arguments
+- `net::Network` : An elastic network
+- `s::Int` : Source node index
+- `d::Int` : Destination node index
+- `rl::Float64` : Rest length of the edge
+- `y::Float64 = 1.0` : Young’s modulus of the edge (default = 1.0)
+
+# Returns
+- `Nothing` : Modifies `net` in place
+
+"""
 function add_edge!(net::Network, s::Int, d::Int, rl::Float64, y = 1.0)
     trues = min(s, d)
     trued = max(s, d)
@@ -309,6 +321,22 @@ function add_edge!(net::Network, s::Int, d::Int, rl::Float64, y = 1.0)
     net.youngs[e] = y
 end
 
+"""
+    rem_edge!(net::Network, s::Int, d::Int) → Nothing
+
+Removes an edge from the elastic network `net` between nodes `s` (source) and `d` (destination).
+
+This operation deletes the edge from the underlying graph and also removes associated entries from the network’s dictionaries: rest lengths, periodic image information, and Young’s moduli.
+
+# Arguments
+- `net::Network` : An elastic network
+- `s::Int` : Source node index
+- `d::Int` : Destination node index
+
+# Returns
+- `Nothing` : Modifies `net` in place
+
+"""
 function rem_edge!(net::Network, s::Int, d::Int)
     rem_edge!(net.g, min(s, d), max(s, d))
     e = Edge(min(s, d), max(s, d))
@@ -317,6 +345,21 @@ function rem_edge!(net::Network, s::Int, d::Int)
     pop!(net.youngs, e)
 end
 
+"""
+    rem_vertex!(net::Network, v::Int) → Nothing
+
+Removes a vertex from the elastic network `net`, updating node positions and edge data to reflect internal graph indexing changes.
+
+In `Graphs.jl`, removing a vertex causes the last vertex to be moved into its place. This function adjusts the `net.points` array and updates associated edge dictionaries—`rest_lengths`, `image_info`, and `youngs`—to ensure consistency with the reshuffled indices.
+
+# Arguments
+- `net::Network` : An elastic network
+- `v::Int` : Index of the vertex to remove
+
+# Returns
+- `Nothing` : Modifies `net` in place
+
+"""
 function rem_vertex!(net::Network, v::Int)
     original_n = nv(net.g)
     original_edges = deepcopy(edges(net.g))
@@ -352,6 +395,22 @@ function rem_vertex!(net::Network, v::Int)
     end
 end
 
+"""
+    pluck_out_edge!(net::Network, e::Edge, direction::Function) → Nothing
+
+Replaces an edge `e` in the elastic network `net` by duplicating one of its endpoints and reconnecting the edge to the new node.
+
+This transformation detaches one node of the edge (chosen via the `direction` function) and moves it to a freshly added vertex with identical coordinates. The original edge is removed, and a new edge—retaining the same rest length and Young’s modulus—is added between the anchoring node and the duplicated node. This structurally alters the network by "plucking out" one endpoint, allowing localized rewiring or boundary conditioning.
+
+# Arguments
+- `net::Network` : An elastic network
+- `e::Edge` : Edge to be replaced
+- `direction::Function` : A function (`src` or `dst`) specifying which node to duplicate
+
+# Returns
+- `Nothing` : Modifies `net` in place
+
+"""
 function pluck_out_edge!(net::Network, e::Edge, direction::Function)
     affected_node = direction(e)
     anchoring = setdiff([src, dst], [direction])[1]
@@ -363,18 +422,57 @@ function pluck_out_edge!(net::Network, e::Edge, direction::Function)
     rem_edge!(net, src(e), dst(e))
 end
 
-function merge_deg1_nodes!(net::Network, deg1node::Int, accepting_node::Int)
-    anchoring_node = neighbors(net.g, deg1node)[1] 
-    e = Edge(deg1node, anchoring_node)
-    if !(e in keys(net.rest_lengths))
-        e = Edge(anchoring_node, deg1node)
+"""
+    plug_in_edge!(net::Network, deg1node::Int, accepting_node::Int) → Nothing
+
+Merges a dangling node into an existing node in the elastic network `net` by removing the temporary degree-1 node (`deg1node`) and attaching its edge to `accepting_node`.
+
+This operation:
+- Verifies that `deg1node` has exactly one neighbor (i.e. was previously created via `pluck_out_edge!`).
+- Recreates the edge between the anchoring node and `accepting_node`, using the original rest length and Young’s modulus.
+- Removes `deg1node`, effectively merging its connection into `accepting_node`.
+
+# Arguments
+- `net::Network` : An elastic network
+- `deg1node::Int` : Index of the dangling node to merge
+- `accepting_node::Int` : Index of the node receiving the merged edge
+
+# Returns
+- `Nothing` : Modifies `net` in place
+
+"""
+function plug_in_edge!(net::Network, deg1node::Int, accepting_node::Int)
+    if degree(net.g)[deg1node] ≠ 1
+        return nothing
     end
-    println(e)
-    add_edge!(net, anchoring_node, accepting_node, net.rest_lengths[e], net.youngs[e])
-    rem_vertex!(net, deg1node)
-    println(size(net.points))
+    anchoring_node = neighbors(net.g, deg1node)[1] 
+    if anchoring_node ≠ accepting_node
+        e = Edge(deg1node, anchoring_node)
+        if !(e in keys(net.rest_lengths))
+            e = Edge(anchoring_node, deg1node)
+        end
+        add_edge!(net, anchoring_node, accepting_node, net.rest_lengths[e], net.youngs[e])
+        rem_vertex!(net, deg1node)
+    end
 end
 
+"""
+    simplify_net!(net::Network) → Nothing
+
+Simplifies the elastic network `net` by iteratively pruning geometrically and topologically unstable nodes that may contribute soft modes.
+
+This function:
+- Removes nodes with degree 0 or 1, which are disconnected or dangling.
+- Removes degree-2 nodes whose neighbor vectors form a bending angle below 179.99°, as these configurations introduce floppy or under-constrained regions.
+- Repeats the simplification until no further changes occur.
+
+# Arguments
+- `net::Network` : An elastic network
+
+# Returns
+- `Nothing` : Modifies `net` in place
+
+"""
 function simplify_net!(net::Network)
     nv_old = nv(net.g)
     nv_new = nv_old - 1

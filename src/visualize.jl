@@ -1,4 +1,18 @@
-function visualize_net(net::Network, edgecolors = "tension")
+"""
+    visualize_net(net::Network) → Figure
+
+Generates a 3D visualization of the elastic network `net`, displaying nodes and edges embedded in the simulation cell defined by `net.basis`.
+
+Edges are colored by normalized tension (default), derived from the product of strain and Young’s modulus. Periodic image contributions are shown by mirrored edge segments when applicable.
+
+# Arguments
+- `net::Network` : An elastic network to visualize
+
+# Returns
+- `Figure` : A Makie figure object showing the elastic network in 3D
+
+"""
+function visualize_net(net::Network)
     es = collect(edges(net.g))
     ps = net.points
     set_theme!(backgroundcolor = :gray)

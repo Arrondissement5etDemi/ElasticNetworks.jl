@@ -10,7 +10,7 @@ Computes the elastic moduli of a network by applying small deformations and extr
 This function performs an energy minimization (`relax!`) and then computes elastic moduli using automatic differentiation. The moduli components are obtained by introducing small strain perturbations in various deformation modes and measuring the corresponding energy response.
 
 # Arguments
-- `net::Network` : The network structure containing connectivity, node positions, and edge properties.
+- `net::Network` : The elastic network structure 
 
 # Behavior
 1. **Relaxation** - Minimizes the elastic energy of the network to find a stable configuration.
