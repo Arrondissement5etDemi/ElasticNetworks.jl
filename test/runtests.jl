@@ -11,9 +11,8 @@ function grad_autodiff(net)
 end
 
 @testset "energy gradient" begin
-    net_info = ElasticityAD.net_info_primitive(actin_net)
     ad_gradient = grad_autodiff(actin_net)
-    ana_gradient = energy_gradient(net_info...)
+    ana_gradient = energy_gradient(actin_net)
     @test all(abs.(ad_gradient - ana_gradient) .< 1e-6)
 end
 

@@ -130,6 +130,7 @@ elastic_energy(net) = elastic_energy(net_info_primitive(net)...)
 
 """
     gradient!(result, basis, points, egs, rls, iis, youngs)
+    gradient(basis, points, edge_nodes, rls, iis, youngs)
 
 Computes the gradient of the elastic potential energy with respect to node positions and stores the result in-place.
 
@@ -158,27 +159,6 @@ function gradient!(result, basis::AbstractArray{T}, points, egs, rls, iis, young
     end
 end
 
-"""
-    gradient(basis, points, edge_nodes, rls, iis, youngs)
-
-Computes the gradient of the elastic energy with respect to node positions, formatted for automatic differentiation (autodiff).
-
-# Purpose
-This function avoids mutable arrays to ensure compatibility with autodiff tools. Instead of modifying values in-place, it constructs updated matrices at each iteration.
-
-# Arguments
-- `basis::Matrix{Float64}` : Basis vectors defining the spatial representation.
-- `points::Matrix{Float64}` : Node coordinates, stored column-wise.
-- `edge_nodes::Matrix{Int64}` : Connectivity of the network, where each column defines an edge.
-- `rls::Vector{Float64}` : Rest lengths for each edge.
-- `iis::Matrix{Int}` : Image offsets for periodic boundary conditions.
-- `youngs::Vector{Float64}` : Young’s modulus values for each edge.
-
-# Returns
-- `Matrix{Float64}` : The negative gradient of the elastic energy with respect to node positions.
-
-"""
-
 function gradient(basis::AbstractArray{T}, points::AbstractArray, edge_nodes, rls, iis, youngs) where T
     result = zeros(T, size(points))
     n = (Int)(length(points)/3)
@@ -203,7 +183,7 @@ function gradient(basis::AbstractArray{T}, points::AbstractArray, edge_nodes, rl
     return collect(Iterators.flatten(basis*reshape(result, (3, n))))
 end
 
-energy_gradient(args...) = gradient(args...)
+energy_gradient(net) = gradient(net_info_primitive(net)...)
 
 """
     hessian!(H, basis, points, egs, rls, iis, youngs)
@@ -271,9 +251,10 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
     end
 end
 
-function energy_hessian(basis, points, egs, rls, iis, youngs)
-    H = zeros(length(points), length(points))
-    hessian!(H, basis, points, egs, rls, iis, youngs)
+function energy_hessian(net)
+    n = length(net.points)
+    H = zeros(n, n)
+    hessian!(H, net_info_primitive(net)...)
     return H
 end
 
@@ -338,13 +319,13 @@ end
 
 function rem_vertex!(net::Network, v::Int)
     original_n = nv(net.g)
+    original_edges = deepcopy(edges(net.g))
     Graphs.rem_vertex!(net.g, v) #Graphs.jl moves the last vertex to index v, so there are now just n - 1 vertices.
     if v ≠ original_n
         net.points = hcat(net.points[:, 1:v - 1], net.points[:, original_n], net.points[:, v + 1: original_n - 1])
     else
         net.points = net.points[:, 1:v - 1]
     end
-    original_edges = deepcopy(keys(net.rest_lengths))
     for e in original_edges
         s, d = src(e), dst(e)
         if s == v || d == v
@@ -397,29 +378,28 @@ end
 function simplify_net!(net::Network)
     nv_old = nv(net.g)
     nv_new = nv_old - 1
-    ne_old = ne(net.g)
-    ne_new = ne_old - 1
-    while nv_old > nv_new && ne_old > ne_new
+    while nv_old > nv_new
         i = 1
         while i ≤ nv(net.g)
-            if degree(net.g, i) in [0, 1]
+            deg_i = degree(net.g, i)
+            if deg_i in [0, 1]
                 rem_vertex!(net, i)
+            elseif deg_i == 2
+                nbs = neighbors(net.g, i)
+                v1 = min_image_vector_rel(net.points[:, i], net.points[:, nbs[1]])
+                v2 = min_image_vector_rel(net.points[:, i], net.points[:, nbs[2]])
+                angle = abs(acosd(clamp(v1⋅v2/(norm(v1)*norm(v2)), -1, 1)))
+                if angle < 179.99
+                    rem_vertex!(net, i)
+                else
+                    i += 1
+                end
             else
                 i += 1
             end
         end
-        tens = tensions(net)
-        es = collect(edges(net.g))
-        for j in eachindex(es)
-            e = es[j]
-            if abs(tens[j]) < 1e-6
-                rem_edge!(net, src(e), dst(e))
-            end
-        end
         nv_old = nv_new
         nv_new = nv(net.g)
-        ne_old = ne_new
-        ne_new = ne(net.g)
     end
 end
 
