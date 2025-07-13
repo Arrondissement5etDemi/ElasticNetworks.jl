@@ -28,6 +28,21 @@ function prestrained_network(g, basis, points, ϵ, default_youngs = 1.0)
     return Network(g, basis, points, rest_lengths, image_info, youngs)
 end
 
+"""
+    diamond1000(l::Float64, ϵ::Float64) → Network
+
+Constructs a 1000-node elastic network based on a diamond lattice within a cubic periodic cell of side length `l`.
+
+This synthetic crystal-like geometry includes eight points per unit cell arranged to approximate tetrahedral bonding motifs. Nodes are placed within a 5×5×5 grid of unit cells, and edges connect nearest neighbors using a minimum image criterion. The returned network includes prestrain `ϵ` applied uniformly to all edges, enabling perturbative analysis or tuning of mechanical response.
+
+# Arguments
+- `l::Float64` : Side length of the periodic simulation box
+- `ϵ::Float64` : Uniform prestrain factor applied to all edges
+
+# Returns
+- `Network` : A prestrained elastic network with diamond-like connectivity
+
+"""
 function diamond1000(l, ϵ)
     g = SimpleGraph(1000)
     basis = [l 0 0; 0 l 0; 0 0 l]
@@ -55,6 +70,22 @@ function diamond1000(l, ϵ)
     return prestrained_network(g, basis, points, ϵ)
 end
 
+"""
+    cubic_network(l::Float64, n_layers::Int, ϵ::Float64 = 0.0) → Network
+
+Constructs a periodic elastic network based on a cubic lattice of `n_layers × n_layers × n_layers` nodes within a simulation cell of side length `l`.
+
+Nodes are evenly spaced along integer grid points, and edges are added between nearest neighbors using a minimum image distance check. The entire network is embedded in a unit cube scaled by `l`, and a uniform prestrain `ϵ` is applied to all edges to model mechanical perturbations or stress conditioning.
+
+# Arguments
+- `l::Float64` : Side length of the periodic simulation box
+- `n_layers::Int` : Number of lattice layers along each axis
+- `ϵ::Float64 = 0.0` : Uniform prestrain factor applied to all edges (default = 0)
+
+# Returns
+- `Network` : A prestrained cubic elastic network
+
+"""
 function cubic_network(l, n_layers::Int, ϵ = 0)
     n = n_layers^3
     g = SimpleGraph(n)
@@ -74,6 +105,23 @@ function cubic_network(l, n_layers::Int, ϵ = 0)
     return prestrained_network(g, basis, points, ϵ)
 end
 
+"""
+    disordered_cubic_network(l::Float64, n_layers::Int, disorder_param::Float64, ϵ::Float64) → Network
+
+Generates a disordered elastic network by perturbing a regular cubic lattice and recalculating rest lengths to incorporate both geometric disorder and prestrain.
+
+This function starts from a uniform cubic network and introduces positional disorder to each node by adding random displacements scaled by `disorder_param`. It then updates the edge rest lengths based on the new geometry, applying a uniform prestrain `ϵ`. The network is relaxed afterward to remove spurious stresses and achieve mechanical consistency.
+
+# Arguments
+- `l::Float64` : Side length of the periodic simulation box
+- `n_layers::Int` : Number of lattice layers along each axis
+- `disorder_param::Float64` : Magnitude of positional disorder relative to unit cell size
+- `ϵ::Float64` : Uniform prestrain factor applied to edge rest lengths
+
+# Returns
+- `Network` : A relaxed elastic network with cubic topology and geometric disorder
+
+"""
 function disordered_cubic_network(l, n_layers, disorder_param, ϵ)
     result = cubic_network(l, n_layers, ϵ)
     unit_cell_length = 1/n_layers
@@ -88,6 +136,23 @@ function disordered_cubic_network(l, n_layers, disorder_param, ϵ)
     return result
 end
 
+"""
+    er(l::Float64, points::Matrix{Float64}, z::Float64, ϵ::Float64) → Network
+
+Generates a randomized elastic network (Erdős–Rényi-style) embedded in a periodic cube of side length `l`, with connectivity tuned to achieve an average degree `z`.
+
+Starting from a graph with no edges, the function randomly samples pairs of distinct nodes from the provided `points`, adding edges until the network reaches the target mean degree. Each added edge obeys a distance cutoff (`< l/2`) and is assigned a rest length reduced by the prestrain factor `ϵ`.
+
+# Arguments
+- `l::Float64` : Side length of the periodic simulation box
+- `points::Matrix{Float64}` : Node coordinates in reduced (unit-cell) space
+- `z::Float64` : Target average degree for the network
+- `ϵ::Float64` : Uniform prestrain factor applied to edge rest lengths
+
+# Returns
+- `Network` : A randomized elastic network with approximately degree `z`
+
+"""
 function er(l, points, z, ϵ)
     basis = I(3)*l
     nv = size(points, 2)
@@ -219,7 +284,7 @@ function match_mean_tension!(net::Network, targ_tension::Float64)
 end
 
 function survey_dsw(p::Float64, targ_tension::Float64, samples::Int)
-    dnet = diamond1000(9.4766, 0.812571915, 1)
+    dnet = diamond1000(9.4766, 0.812571915)
     for _ = 1:samples
         dsw = diamond_smallworld_degree_preserving(dnet, p, 0.01)
         relax!(dsw)
@@ -229,6 +294,29 @@ function survey_dsw(p::Float64, targ_tension::Float64, samples::Int)
     end
 end
 
+"""
+    load_network(filename::String) → Network
+
+Loads an elastic network from a file containing precomputed graph geometry and edge attributes.
+
+The input file is expected to contain:
+- `"basis"` : A 3×3 matrix representing the unit cell basis
+- `"nodes"` : A 3×N array of reduced node coordinates
+- `"edge_info"` : A matrix where each row describes an edge, including:
+    - node indices,
+    - image displacement vector,
+    - rest length,
+    - (optional) Young’s modulus
+
+This function reconstructs the graph topology, assigns mechanical parameters, and builds the full `Network` object.
+
+# Arguments
+- `filename::String` : Path to the file containing serialized network data
+
+# Returns
+- `Network` : Reconstructed elastic network with geometry and physics
+
+"""
 function load_network(filename)
     b_data = load(filename)
     basis = b_data["basis"]
@@ -244,7 +332,11 @@ function load_network(filename)
         e = Edge(true_src, true_dst)
         rest_lengths[e] = row[6]
         image_info[e] = sign(row[2] - row[1])*row[3:5]
-        youngs[e] = 1.0
+        if length(row) == 5
+            youngs[e] = 1.0
+        else
+            youngs[e] = row[6]
+        end
     end
     return Network(g, basis, points, rest_lengths, image_info, youngs)
 end
