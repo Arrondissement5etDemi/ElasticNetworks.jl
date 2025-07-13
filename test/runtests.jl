@@ -24,13 +24,11 @@ function hessian_autodiff(net)
 end
 
 @testset "energy hessian" begin
-    net_info = ElasticityAD.net_info_primitive(actin_net)
     ad_hessian = hessian_autodiff(actin_net)
-    ana_hessian = energy_hessian(net_info...)
+    ana_hessian = energy_hessian(actin_net)
     @test all(abs.(ad_hessian - ana_hessian) .< 1e-6)
-    net_info = ElasticityAD.net_info_primitive(cube_net)
     ad_hessian = hessian_autodiff(cube_net)
-    ana_hessian = energy_hessian(net_info...)
+    ana_hessian = energy_hessian(cube_net)
     @test all(abs.(ad_hessian - ana_hessian) .< 1e-6)
 end
 
