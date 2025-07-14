@@ -13,6 +13,7 @@ Edges are colored by normalized tension (default), derived from the product of s
 
 """
 function visualize_net(net::Network)
+    recenter!(net)
     es = collect(edges(net.g))
     ps = net.points
     set_theme!(backgroundcolor = :gray)
@@ -39,4 +40,12 @@ function visualize_net(net::Network)
     end
     linesegments!(f[1, 1], data, fxaa = false, color = 10 .- tension_data*10, colormap = :sunset, linewidth = 3)
     return f
+end
+
+function recenter!(net::Network)
+    self_images = Int.(fld.(net.points, 1))
+    net.points = net.points.%1
+    for e in edges(net.g)
+        net.image_info[e] += (self_images[:, dst(e)] - self_images[:, src(e)]) 
+    end
 end
