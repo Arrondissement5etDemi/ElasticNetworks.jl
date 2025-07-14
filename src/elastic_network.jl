@@ -1,7 +1,4 @@
 using Graphs, LoopVectorization, Optim, LinearAlgebra, Statistics, ForwardDiff, ReverseDiff, JLD2, CairoMakie
-import Graphs: rem_vertex!, rem_edge!
-
-quick_euclidean_graph(N::Int, cutoff) = euclidean_graph(N, 3; cutoff = cutoff, bc = :periodic)
 
 """
     mutable struct Network
@@ -341,7 +338,7 @@ This operation deletes the edge from the underlying graph and also removes assoc
 
 """
 function rem_edge!(net::Network, s::Int, d::Int)
-    rem_edge!(net.g, min(s, d), max(s, d))
+    Graphs.rem_edge!(net.g, min(s, d), max(s, d))
     e = Edge(min(s, d), max(s, d))
     pop!(net.rest_lengths, e)
     pop!(net.image_info, e)

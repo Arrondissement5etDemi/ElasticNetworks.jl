@@ -1,5 +1,7 @@
 using Roots, Statistics, StatsBase, Random
 
+
+
 """
     prestrained_network(g, basis, points, ϵ, default_youngs=1.0)
 
@@ -64,7 +66,7 @@ function diamond1000(l, ϵ)
     for i in 1:1000, j in i + 1:1000
         dij = min_image_vector_rel(points[:, i], points[:, j])
         if norm(dij) - nnd ≤ 1e-4
-            add_edge!(g, i, j)
+            Graphs.add_edge!(g, i, j)
         end
     end
     return prestrained_network(g, basis, points, ϵ)
@@ -99,7 +101,7 @@ function cubic_network(l, n_layers::Int, ϵ = 0)
     for i in 1:n, j in i + 1:n
         dij = min_image_vector_rel(points[:, i], points[:, j])
         if abs(norm(dij) - nnd) ≤ 1e-4
-            add_edge!(g, i, j)
+            Graphs.add_edge!(g, i, j)
         end
     end
     return prestrained_network(g, basis, points, ϵ)
