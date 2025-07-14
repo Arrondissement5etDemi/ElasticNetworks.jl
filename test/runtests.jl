@@ -1,7 +1,7 @@
 using ElasticityAD, Test, ForwardDiff
 
 cube_net = cubic_network(10, 10)
-actin_net = cytoskeleton_net() 
+actin_net = load_network("../data/threshold0x001_conc0.5_maxrl3_epsilon0x05_17500.jld2")
 
 function grad_autodiff(net)
     net_info = ElasticityAD.net_info_primitive(net)

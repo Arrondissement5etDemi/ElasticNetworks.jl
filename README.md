@@ -32,26 +32,21 @@ fig = visualize_net(net)
 ```
 
 You can also explore:
+
 ```julia
-ern = er(9.4766, rand(3, 1000), 4.0, 0.2) #A erdos-renyi network with 1000 nodes at random 3D positions, with box side length 9.4766, mean degree = 4 and prestrain on edges = 0.2.
-relax!(ern) #minimize the elastic energy
+#create erdos-renyi network with 1300 nodes at random 3D positions, with box side length 9.4766, mean degree = 4, prestrain on edges = 0.3, and max edge rest length 3.0.
+ern = er(9.4766, rand(3, 1300), 4.0, 0.2, 3.0) 
+#minimize the elastic energy
+relax!(ern) 
+#create a copy of the network 
 erncopy = deepcopy(ern)
-simplify_net!(erncopy) #remove soft modes
-moduli(erncopy)
+#remove contributions to soft modes such as degree-0, degree-1 nodes, and degree-2 nodes joining 2 edges bent at an angle.
+simplify_net!(erncopy) 
+#compute elastic moduli with automatic differentiation.
+moduli(erncopy) 
 ```
 ## 📚 Documentation
 
 Comprehensive documentation for the elastic network infrastructure is available at:
 
 👉 [ElasticityAD.jl Documentation](https://arrondissement5etdemi.github.io/ElasticityAD.jl)
-
-## 🧪 Citation
-
-```bibtex
-@misc{ElasticityAD,
-  author       = {Haina Wang},
-  title        = {ElasticityAD.jl: Exact Linear Response in Elastic Networks via Automatic Differentiation},
-  year         = {2025},
-  howpublished = {\url{https://github.com/Arrondissement5etDemi/ElasticityAD.jl}},
-  note         = {GitHub repository}
-}

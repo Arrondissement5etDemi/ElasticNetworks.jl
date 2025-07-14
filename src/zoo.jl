@@ -155,7 +155,7 @@ Starting from a graph with no edges, the function randomly samples pairs of dist
 - `Network` : A randomized elastic network with approximately degree `z`
 
 """
-function er(l, points, z, ϵ)
+function er(l, points, z, ϵ, max_rl)
     basis = I(3)*l
     nv = size(points, 2)
     g = SimpleGraph(nv, 0)
@@ -171,7 +171,7 @@ function er(l, points, z, ϵ)
         v1 = points[:, n1]
         v2 = points[:, n2]
         rl = norm(basis*min_image_vector_rel(v1, v2))*(1 - ϵ)
-        if rl < l/2
+        if rl < max_rl
             add_edge!(result, n1, n2, rl)
         end
         z_now = mean_degree(result)
