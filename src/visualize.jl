@@ -19,7 +19,7 @@ function visualize_net(net::Network)
     set_theme!(backgroundcolor = :gray)
     f = Figure(size = (600, 600))
     tens = tensions(net)
-    tension_range = maximum(tens)
+    tension_range = max(maximum(tens), 1e-5)
     tens /= tension_range
     data = []
     tension_data = zeros(0)
