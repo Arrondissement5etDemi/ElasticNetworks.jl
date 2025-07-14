@@ -1,6 +1,8 @@
 module ElasticityAD
     export(Network)
     export(mean_degree)
+    export(strains)
+    export(tensions)
     export(elastic_energy)
     export(energy_gradient)
     export(energy_hessian)
@@ -19,8 +21,11 @@ module ElasticityAD
     export(cubic_network)
     export(disordered_cubic_network)
     export(er)
+    export(net_info_primitive)
     export(load_network)
+    export(save_network)
     include("moduliAD.jl")
     include("zoo.jl")
     include("visualize.jl")
+    include("io.jl")
 end

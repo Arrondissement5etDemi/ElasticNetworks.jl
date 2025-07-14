@@ -1,5 +1,5 @@
 import Pkg; Pkg.add("Documenter")
-using Documenter, ElasticityAD
+using Documenter, ElasticityAD, Graphs
 push!(LOAD_PATH,"../src/")
 
 makedocs(

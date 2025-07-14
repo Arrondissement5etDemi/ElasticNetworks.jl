@@ -45,8 +45,6 @@ function mean_degree(net::Network)
     end
 end
 
-#TODO: pbc wrap
-
 """
     strains(net::Network) → Vector{Float64}
 
@@ -59,7 +57,7 @@ Computes the edge-wise strain magnitudes (absolute values) in the elastric netwo
 - `Vector{Float64}` : A vector of strain values for each edge in `net`.
 
 """
-function strains(net)
+function strains(net::Network)
     euclidean_dist(v1::Int, v2::Int) = norm(net.basis*min_image_vector_rel(net.points[:, v1], net.points[:, v2]))
     return [abs((euclidean_dist(k.src, k.dst) - net.rest_lengths[k])/net.rest_lengths[k]) for k in edges(net.g)]
 end
@@ -76,38 +74,10 @@ Computes the edge-wise tensions in the elastic network `net`, defined as the pro
 - `Vector{Float64}` : A vector of tension values for each edge in `net`.
 
 """
-function tensions(net)
+function tensions(net::Network)
     σij = strains(net)
     yij = [net.youngs[e] for e in edges(net.g)]
     return [σij[k]*yij[k] for k in eachindex(σij)]
-end
-
-"""
-    net_info_primitive(net::Network)
-
-Converts network data into numerical matrices containing only primitive types, enabling efficient SIMD (Single Instruction, Multiple Data) operations if desired.
-
-# What is SIMD?
-SIMD is a parallel computing technique that allows the same operation to be applied to multiple data points simultaneously. By structuring data for SIMD, numerical computations can be executed faster by leveraging modern processor optimizations.
-
-# Arguments
-- `net::Network` : The network structure containing connectivity, node positions, and edge properties.
-
-# Returns
-- `basis::Matrix{Float64}` : Basis vectors defining the network space.
-- `points::Vector{Float64}` : Flattened node coordinates.
-- `edges::Matrix{Int64}` : Edge connections formatted for numerical processing.
-- `rls::Vector{Float64}` : Rest lengths of edges.
-- `iis::Matrix{Int}` : Image information for periodic boundary conditions.
-- `youngs::Vector{Float64}` : Young’s modulus values for edges.
-
-"""
-function net_info_primitive(net::Network)
-    egs = hcat(([src(e), dst(e)] for e in edges(net.g))...)
-    rls = [net.rest_lengths[e] for e in edges(net.g)]
-    iis = hcat((net.image_info[e] for e in edges(net.g))...)
-    youngs = [net.youngs[e] for e in edges(net.g)]
-    return net.basis, collect(Iterators.flatten(net.points)), egs, rls, iis, youngs
 end
 
 #__________________________________________________________________________
@@ -142,8 +112,9 @@ Computes the total elastic potential energy of the elastic network `net`, based 
 - `Float64` : Total elastic energy stored in the network
 
 """
-
-elastic_energy(net::Network) = elastic_energy(net_info_primitive(net)...)
+function elastic_energy(net::Network) 
+    return elastic_energy(net_info_primitive(net)...)
+end
 
 function gradient!(result, basis::AbstractArray{T}, points, egs, rls, iis, youngs) where T
     g = gradient(basis, points, egs, rls, iis, youngs)
@@ -396,7 +367,7 @@ function rem_vertex!(net::Network, v::Int)
 end
 
 """
-    pluck_out_edge!(net::Network, e::Edge, direction::Function) → Nothing
+    pluck_out_edge!(net::Network, e::Graphs.SimpleGraphs.SimpleEdge, direction::Function) → Nothing
 
 Replaces an edge `e` in the elastic network `net` by duplicating one of its endpoints and reconnecting the edge to the new node.
 
@@ -411,7 +382,7 @@ This transformation detaches one node of the edge (chosen via the `direction` fu
 - `Nothing` : Modifies `net` in place
 
 """
-function pluck_out_edge!(net::Network, e::Edge, direction::Function)
+function pluck_out_edge!(net::Network, e::Graphs.SimpleGraphs.SimpleEdge, direction::Function)
     affected_node = direction(e)
     anchoring = setdiff([src, dst], [direction])[1]
     anchoring_node = anchoring(e)

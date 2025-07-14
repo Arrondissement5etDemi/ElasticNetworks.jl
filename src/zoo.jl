@@ -3,7 +3,7 @@ using Roots, Statistics, StatsBase, Random
 
 
 """
-    prestrained_network(g, basis, points, ϵ, default_youngs=1.0)
+    prestrained_network(g, basis, points, ϵ, default_youngs=1.0) → Network
 
 Creates a `Network` with prestrained edges based on the provided graph, basis vectors, and node coordinates.
 
@@ -296,50 +296,4 @@ function survey_dsw(p::Float64, targ_tension::Float64, samples::Int)
     end
 end
 
-"""
-    load_network(filename::String) → Network
-
-Loads an elastic network from a file containing precomputed graph geometry and edge attributes.
-
-The input file is expected to contain:
-- `"basis"` : A 3×3 matrix representing the unit cell basis
-- `"nodes"` : A 3×N array of reduced node coordinates
-- `"edge_info"` : A matrix where each row describes an edge, including:
-    - node indices,
-    - image displacement vector,
-    - rest length,
-    - (optional) Young’s modulus
-
-This function reconstructs the graph topology, assigns mechanical parameters, and builds the full `Network` object.
-
-# Arguments
-- `filename::String` : Path to the file containing serialized network data
-
-# Returns
-- `Network` : Reconstructed elastic network with geometry and physics
-
-"""
-function load_network(filename)
-    b_data = load(filename)
-    basis = b_data["basis"]
-    points = b_data["nodes"]
-    nv = size(points, 2)
-    rest_lengths = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
-    image_info = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Vector{Int}}()
-    youngs = Dict{Graphs.SimpleGraphs.SimpleEdge{Int64}, Float64}()
-    g = SimpleGraph(nv)
-    for row in eachrow(b_data["edge_info"])
-        true_src, true_dst = sort(Int.(row[1:2]))
-        Graphs.add_edge!(g, true_src, true_dst)
-        e = Edge(true_src, true_dst)
-        rest_lengths[e] = row[6]
-        image_info[e] = sign(row[2] - row[1])*row[3:5]
-        if length(row) == 6
-            youngs[e] = 1.0
-        else
-            youngs[e] = row[7]
-        end
-    end
-    return Network(g, basis, points, rest_lengths, image_info, youngs)
-end
 

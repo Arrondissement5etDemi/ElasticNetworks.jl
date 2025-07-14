@@ -2,7 +2,7 @@ include("elastic_network.jl")
 using IterativeSolvers
 
 """
-    moduli(net)
+    moduli(net::Network)
 
 Computes the elastic moduli of a network by applying small deformations and extracting the stiffness components.
 
