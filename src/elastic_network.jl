@@ -1,5 +1,5 @@
 using Graphs, LoopVectorization, Optim, LinearAlgebra, Statistics, ForwardDiff, ReverseDiff, JLD2, CairoMakie
-import Graphs: rem_vertex!, add_edge!, rem_edge!
+import Graphs: rem_vertex!, rem_edge!
 
 quick_euclidean_graph(N::Int, cutoff) = euclidean_graph(N, 3; cutoff = cutoff, bc = :periodic)
 
@@ -48,10 +48,12 @@ function mean_degree(net::Network)
     end
 end
 
+#TODO: pbc wrap
+
 """
     strains(net::Network) → Vector{Float64}
 
-Computes the edge-wise strain magnitudes in the elastric network `net`, defined as the absolute relative deviation from rest length for each edge.
+Computes the edge-wise strain magnitudes (absolute values) in the elastric network `net`, defined as the relative deviation from rest length for each edge.
 
 # Arguments
 - `net::Network` :  An elastic network 
@@ -110,6 +112,7 @@ function net_info_primitive(net::Network)
     youngs = [net.youngs[e] for e in edges(net.g)]
     return net.basis, collect(Iterators.flatten(net.points)), egs, rls, iis, youngs
 end
+
 #__________________________________________________________________________
 function elastic_energy(basis, points, egs, rls, iis, youngs)
     result = 0
@@ -314,7 +317,7 @@ Although the edge is physically symmetric, the `(s, d)` convention provides dire
 function add_edge!(net::Network, s::Int, d::Int, rl::Float64, y = 1.0)
     trues = min(s, d)
     trued = max(s, d)
-    add_edge!(net.g, trues, trued)
+    Graphs.add_edge!(net.g, trues, trued)
     e = Edge(trues, trued)
     net.rest_lengths[e] = rl
     net.image_info[e] = get_image_info(net.points[:, trues], net.points[:, trued])

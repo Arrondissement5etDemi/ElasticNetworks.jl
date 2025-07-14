@@ -19,7 +19,7 @@ module ElasticityAD
     export(cubic_network)
     export(disordered_cubic_network)
     export(er)
-    export(cytoskeleton_net)
+    export(load_network)
     include("moduliAD.jl")
     include("zoo.jl")
     include("visualize.jl")

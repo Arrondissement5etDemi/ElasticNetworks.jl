@@ -332,15 +332,12 @@ function load_network(filename)
         e = Edge(true_src, true_dst)
         rest_lengths[e] = row[6]
         image_info[e] = sign(row[2] - row[1])*row[3:5]
-        if length(row) == 5
+        if length(row) == 6
             youngs[e] = 1.0
         else
-            youngs[e] = row[6]
+            youngs[e] = row[7]
         end
     end
     return Network(g, basis, points, rest_lengths, image_info, youngs)
 end
 
-function cytoskeleton_net()
-    return load_network("../data/threshold0x001_conc0.5_maxrl3_epsilon0x05_17500.jld2")
-end
