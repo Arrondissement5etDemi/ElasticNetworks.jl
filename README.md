@@ -1,7 +1,7 @@
 # ElasticityAD.jl
 
-**ElasticityAD.jl** provides exact linear-response computations for elastic networks via automatic differentiation.  
-Designed for theoretical and computational research, it supports periodic boundary conditions, topology editing, geometric disorder, and 3D visualization—within a unified, easy-to-use API.
+**ElasticityAD.jl** provides numerically EXACT linear-response computations for elastic networks of harmonic springs via automatic differentiation.  
+Designed for theoretical and computational research, it supports periodic boundary conditions, topology editing (e.g. edge pruning, node merging), geometric disorder, and 3D visualization, within a unified, easy-to-use API.
 
 ---
 
