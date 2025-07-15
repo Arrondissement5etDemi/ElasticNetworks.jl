@@ -138,7 +138,7 @@ function disordered_cubic_network(l, n_layers, disorder_param, ϵ)
 end
 
 """
-    er(l::Float64, points::Matrix{Float64}, z::Float64, ϵ::Float64) → Network
+    er(l::Float64, points::Matrix{Float64}, z::Float64, ϵ::Float64, max_rl::Float64) → Network
 
 Generates a randomized elastic network (Erdős–Rényi-style) embedded in a periodic cube of side length `l`, with connectivity tuned to achieve an average degree `z`.
 

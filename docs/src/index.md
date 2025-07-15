@@ -30,9 +30,9 @@ moduli(net::Network)
 
 ## Network modifiers: topology
 ```@docs
-add_edge!(net::Network, s::Int, d::Int, rl::Float64, y::Float64 = 1.0)
-rem_edge!(net::Network, s::Int, d::Int)
-rem_vertex!(net::Network, v::Int)
+ElasticNetworks.add_edge!(net::Network, s::Int, d::Int, rl::Float64, y::Float64 = 1.0)
+ElasticNetworks.rem_edge!(net::Network, s::Int, d::Int)
+ElasticNetworks.rem_vertex!(net::Network, v::Int)
 pluck_out_edge!(net::Network, e::Graphs.SimpleGraphs.SimpleEdge, direction::Function)
 plug_in_edge!(net::Network, deg1node::Int, accepting_node::Int)
 simplify_net!(net::Network)
@@ -49,7 +49,7 @@ prestrained_network(g, basis, points, ϵ, default_youngs=1.0)
 diamond1000(l::Float64, ϵ::Float64)
 cubic_network(l::Float64, n_layers::Int, ϵ::Float64 = 0.0)
 disordered_cubic_network(l::Float64, n_layers::Int, disorder_param::Float64, ϵ::Float64)
-er(l::Float64, points::Matrix{Float64}, z::Float64, ϵ::Float64)
+er(l::Float64, points::Matrix{Float64}, z::Float64, ϵ::Float64, max_rl::Float64)
 ```
 
 ## IO functions
