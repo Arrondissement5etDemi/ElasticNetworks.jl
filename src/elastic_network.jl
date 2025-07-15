@@ -396,12 +396,12 @@ end
 """
     plug_in_edge!(net::Network, deg1node::Int, accepting_node::Int) → Nothing
 
-Merges a dangling node into an existing node in the elastic network `net` by removing the temporary degree-1 node (`deg1node`) and attaching its edge to `accepting_node`.
+Merges a dangling (degree-1) node with an existing `accepting_node` node in the elastic network `net`.
 
 This operation:
-- Verifies that `deg1node` has exactly one neighbor (i.e. was previously created via `pluck_out_edge!`).
-- Recreates the edge between the anchoring node and `accepting_node`, using the original rest length and Young’s modulus.
-- Removes `deg1node`, effectively merging its connection into `accepting_node`.
+- Verifies that `deg1node` has exactly one neighbor.
+- Creates an edge between the anchoring node and `accepting_node` that has the rest length and Young’s modulus of the dangling edge.
+- Removes `deg1node` and its associated dangling edge.
 
 # Arguments
 - `net::Network` : An elastic network
