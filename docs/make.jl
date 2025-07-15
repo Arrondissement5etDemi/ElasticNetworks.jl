@@ -1,4 +1,5 @@
 import Pkg; Pkg.add("Documenter")
+Pkg.add("Graphs")
 using Documenter, ElasticityAD, Graphs
 push!(LOAD_PATH,"../src/")
 
