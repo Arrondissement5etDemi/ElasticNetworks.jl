@@ -1,6 +1,6 @@
-# ElasticityAD.jl
+# ElasticNetworks.jl
 
-**ElasticityAD.jl** provides numerically EXACT linear-response computations for elastic networks of harmonic springs via automatic differentiation.  
+**ElasticNetworks.jl** provides numerically EXACT linear-response computations for elastic networks of harmonic springs via automatic differentiation.  
 Designed for theoretical and computational research, it supports periodic boundary conditions, topology editing (e.g. edge pruning, node merging), geometric disorder, and 3D visualization, within a unified, easy-to-use API.
 
 ---
@@ -20,12 +20,12 @@ Designed for theoretical and computational research, it supports periodic bounda
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/Arrondissement5etDemi/ElasticityAD.jl")
+Pkg.add(url="https://github.com/Arrondissement5etDemi/ElasticNetworks.jl")
 ```
 ## 📘 Quick Start
 
 ```julia
-using ElasticityAD
+using ElasticNetworks
 
 net = diamond1000(10.0, 0.05)
 fig = visualize_net(net)
@@ -49,4 +49,4 @@ moduli(erncopy)
 
 Comprehensive documentation for the elastic network infrastructure is available at:
 
-👉 [ElasticityAD.jl Documentation](https://arrondissement5etdemi.github.io/ElasticityAD.jl)
+👉 [ElasticNetworks.jl Documentation](https://arrondissement5etdemi.github.io/ElasticNetworks.jl)

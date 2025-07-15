@@ -44,7 +44,7 @@ end
 
 function recenter!(net::Network)
     self_images = Int.(fld.(net.points, 1))
-    net.points = net.points.%1
+    net.points = mod.(net.points, 1)
     for e in edges(net.g)
         net.image_info[e] += (self_images[:, dst(e)] - self_images[:, src(e)]) 
     end

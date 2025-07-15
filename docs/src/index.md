@@ -1,4 +1,4 @@
-# ElasticityAD.jl Documentation
+# ElasticNetworks.jl Documentation
 
 ```@contents
 ```

@@ -1,4 +1,4 @@
-module ElasticityAD
+module ElasticNetworks
     export(Network)
     export(mean_degree)
     export(strains)

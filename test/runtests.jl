@@ -1,10 +1,10 @@
-using ElasticityAD, Test, ForwardDiff
+using ElasticNetworks, Test, ForwardDiff
 
 cube_net = cubic_network(10, 10)
 actin_net = load_network("../data/threshold0x001_conc0.5_maxrl3_epsilon0x05_17500.jld2")
 
 function grad_autodiff(net)
-    net_info = ElasticityAD.net_info_primitive(net)
+    net_info = net_info_primitive(net)
     basis, ini_points, egs, rls, iis, youngs = net_info
     energy(points) = elastic_energy(basis, points, egs, rls, iis, youngs)
     return ForwardDiff.gradient(energy, ini_points)
@@ -17,7 +17,7 @@ end
 end
 
 function hessian_autodiff(net)
-    net_info = ElasticityAD.net_info_primitive(net)
+    net_info = net_info_primitive(net)
     basis, ini_points, egs, rls, iis, youngs = net_info
     energy(points) = elastic_energy(basis, points, egs, rls, iis, youngs)
     return ForwardDiff.hessian(energy, ini_points)

@@ -1,7 +1,6 @@
 using Roots, Statistics, StatsBase, Random
 
 
-
 """
     prestrained_network(g, basis, points, ϵ, default_youngs=1.0) → Network
 
