@@ -90,7 +90,7 @@ end
 #__________________________________________________________________________
 function elastic_energy(basis, points, egs, rls, iis, youngs)
     result = 0
-    for k in axes(egs, 2)
+    @tturbo for k in axes(egs, 2)
         i = egs[1, k]
         j = egs[2, k]
         i_ind, j_ind = (i - 1)*3, (j - 1)*3#because points are flattened
