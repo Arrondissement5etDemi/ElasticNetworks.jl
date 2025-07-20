@@ -29,7 +29,6 @@ This function performs an energy minimization (`relax!`) and then computes elast
 """
 function moduli(net::Network)
     relax!(net)
-    #simplify_net!(net)
     basis, points, edge_nodes, rls, iis, youngs = net_info_primitive(net)
     deformed_bases = Dict{String, Function}()
     deformed_bases["1111"] = ϵ -> ([ϵ 0 0; 0 0 0; 0 0 0] + I)*basis

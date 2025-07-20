@@ -16,6 +16,7 @@ module ElasticNetworks
     export(simplify_net!)
     export(moduli)
     export(visualize_net)
+    export(visualize_eigenmode)
     export(prestrained_network)
     export(diamond1000)
     export(cubic_network)

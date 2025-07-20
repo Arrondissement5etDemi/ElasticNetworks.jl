@@ -19,7 +19,7 @@ function visualize_net(net::Network)
     set_theme!(backgroundcolor = :gray)
     f = Figure(size = (600, 600))
     tens = tensions(net)
-    tension_range = max(maximum(tens), 1e-5)
+    tension_range = max(maximum(tens), 1e-5)*2
     tens /= tension_range
     data = []
     tension_data = zeros(0)
@@ -40,6 +40,25 @@ function visualize_net(net::Network)
         end
     end
     linesegments!(f[1, 1], data, fxaa = false, color = 10 .- tension_data*10, colormap = :sunset, linewidth = 3)
+    return f
+end
+
+function visualize_eigenmode(net::Network, lvl::Int)
+    f = visualize_net(net)
+    if lvl ≤ 3
+        throw(DomainError(lvl, "lvl <= 3 is a translational mode"))
+    end
+    h = energy_hessian(net)
+    modes = eigvecs(h)
+    mode = reshape(modes[:, lvl], size(net.points))
+    ps = []
+    ns = []
+    for i in 1:nv(net.g)
+        push!(ps, Point3d(net.basis*net.points[:, i]))
+        push!(ns, Point3d(net.basis*mode[:, i]))
+    end
+    lengths = norm.(ns)
+    arrows3d!(ps, ns, color = lengths, lengthscale = 2)
     return f
 end
 

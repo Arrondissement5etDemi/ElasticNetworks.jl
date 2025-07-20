@@ -45,6 +45,9 @@ function mean_degree(net::Network)
     end
 end
 
+euclidean_dist(net::Network, i::Int, j::Int) = norm(net.basis*min_image_vector_rel(net.points[:, i], net.points[:, j]))
+euclidean_dist(net::Network, v1::Vector{Float64}, v2::Vector{Float64}) = norm(net.basis*min_image_vector_rel(v1, v2))
+
 """
     strains(net::Network) → Vector{Float64}
 
@@ -58,8 +61,12 @@ Computes the edge-wise strain magnitudes (absolute values) in the elastric netwo
 
 """
 function strains(net::Network)
-    euclidean_dist(v1::Int, v2::Int) = norm(net.basis*min_image_vector_rel(net.points[:, v1], net.points[:, v2]))
-    return [abs((euclidean_dist(k.src, k.dst) - net.rest_lengths[k])/net.rest_lengths[k]) for k in edges(net.g)]
+    return [abs((euclidean_dist(net, k.src, k.dst) - net.rest_lengths[k])/net.rest_lengths[k]) for k in edges(net.g)]
+end
+
+function force(net::Network, src::Int, dst::Int)
+    e = Edge(src, dst)
+    return abs(euclidean_dist(net, src, dst) - net.rest_lengths[e])/net.rest_lengths[e]*net.youngs[e]
 end
 
 """
