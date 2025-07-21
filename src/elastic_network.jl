@@ -174,8 +174,7 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
     I3 = Matrix{Float64}(I, 3, 3)  # 3×3 identity matrix
     bt = transpose(basis)
     ne = size(egs, 2)
-    u_array = zeros(4, ne)
-    for k in 1:ne
+    @tturbo for k in 1:ne
         i, j = egs[1, k], egs[2, k]
         i_ind, j_ind = (i - 1) * 3, (j - 1) * 3
         # Compute displacement with periodic adjustments
@@ -188,18 +187,127 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
         r_local_z = basis[3, 1] * dx + basis[3, 2] * dy + basis[3, 3] * dz
         L = √(r_local_x^2 + r_local_y^2 + r_local_z^2)
         # Compute unit vector
-        u_array[1, k] = r_local_x / L
-        u_array[2, k] = r_local_y / L
-        u_array[3, k] = r_local_z / L
-        u_array[4, k] = L
+        u1 = r_local_x / L
+        u2 = r_local_y / L
+        u3 = r_local_z / L
+        α = Float64(youngs[k] / rls[k])
+        β = Float64(rls[k] / L)
+        H_local11 = α * (1.0 + β * (u1*u1 - 1.0))
+        H_local12 = α * β * (u1*u2)
+        H_local13 = α * β * (u1*u3)
+        H_local21 = α * β * (u2*u1)
+        H_local22 = α * (1.0 + β * (u2*u2 - 1.0))
+        H_local23 = α * β * (u2*u3)
+        H_local31 = α * β * (u3*u1)
+        H_local32 = α * β * (u3*u2)
+        H_local33 = α * (1.0 + β * (u3*u3 - 1.0))
+        H_block11 = basis[1,1]*(H_local11*bt[1,1] + H_local12*bt[2,1] + H_local13*bt[3,1]) +
+            basis[1,2]*(H_local21*bt[1,1] + H_local22*bt[2,1] + H_local23*bt[3,1]) +
+            basis[1,3]*(H_local31*bt[1,1] + H_local32*bt[2,1] + H_local33*bt[3,1])
+
+        H_block12 = basis[1,1]*(H_local11*bt[1,2] + H_local12*bt[2,2] + H_local13*bt[3,2]) +
+                    basis[1,2]*(H_local21*bt[1,2] + H_local22*bt[2,2] + H_local23*bt[3,2]) +
+                    basis[1,3]*(H_local31*bt[1,2] + H_local32*bt[2,2] + H_local33*bt[3,2])
+
+        H_block13 = basis[1,1]*(H_local11*bt[1,3] + H_local12*bt[2,3] + H_local13*bt[3,3]) +
+                    basis[1,2]*(H_local21*bt[1,3] + H_local22*bt[2,3] + H_local23*bt[3,3]) +
+                    basis[1,3]*(H_local31*bt[1,3] + H_local32*bt[2,3] + H_local33*bt[3,3])
+
+        H_block21 = basis[2,1]*(H_local11*bt[1,1] + H_local12*bt[2,1] + H_local13*bt[3,1]) +
+                    basis[2,2]*(H_local21*bt[1,1] + H_local22*bt[2,1] + H_local23*bt[3,1]) +
+                    basis[2,3]*(H_local31*bt[1,1] + H_local32*bt[2,1] + H_local33*bt[3,1])
+
+        H_block22 = basis[2,1]*(H_local11*bt[1,2] + H_local12*bt[2,2] + H_local13*bt[3,2]) +
+                    basis[2,2]*(H_local21*bt[1,2] + H_local22*bt[2,2] + H_local23*bt[3,2]) +
+                    basis[2,3]*(H_local31*bt[1,2] + H_local32*bt[2,2] + H_local33*bt[3,2])
+
+        H_block23 = basis[2,1]*(H_local11*bt[1,3] + H_local12*bt[2,3] + H_local13*bt[3,3]) +
+                    basis[2,2]*(H_local21*bt[1,3] + H_local22*bt[2,3] + H_local23*bt[3,3]) +
+                    basis[2,3]*(H_local31*bt[1,3] + H_local32*bt[2,3] + H_local33*bt[3,3])
+
+        H_block31 = basis[3,1]*(H_local11*bt[1,1] + H_local12*bt[2,1] + H_local13*bt[3,1]) +
+                    basis[3,2]*(H_local21*bt[1,1] + H_local22*bt[2,1] + H_local23*bt[3,1]) +
+                    basis[3,3]*(H_local31*bt[1,1] + H_local32*bt[2,1] + H_local33*bt[3,1])
+
+        H_block32 = basis[3,1]*(H_local11*bt[1,2] + H_local12*bt[2,2] + H_local13*bt[3,2]) +
+                    basis[3,2]*(H_local21*bt[1,2] + H_local22*bt[2,2] + H_local23*bt[3,2]) +
+                    basis[3,3]*(H_local31*bt[1,2] + H_local32*bt[2,2] + H_local33*bt[3,2])
+
+        H_block33 = basis[3,1]*(H_local11*bt[1,3] + H_local12*bt[2,3] + H_local13*bt[3,3]) +
+                    basis[3,2]*(H_local21*bt[1,3] + H_local22*bt[2,3] + H_local23*bt[3,3]) +
+                    basis[3,3]*(H_local31*bt[1,3] + H_local32*bt[2,3] + H_local33*bt[3,3])
+
+        H[i_ind + 1, j_ind + 1] -= H_block11
+        H[i_ind + 1, j_ind + 2] -= H_block12
+        H[i_ind + 1, j_ind + 3] -= H_block13
+        H[i_ind + 2, j_ind + 1] -= H_block21
+        H[i_ind + 2, j_ind + 2] -= H_block22
+        H[i_ind + 2, j_ind + 3] -= H_block23
+        H[i_ind + 3, j_ind + 1] -= H_block31
+        H[i_ind + 3, j_ind + 2] -= H_block32
+        H[i_ind + 3, j_ind + 3] -= H_block33
+
+        H[j_ind + 1, i_ind + 1] -= H_block11
+        H[j_ind + 1, i_ind + 2] -= H_block12
+        H[j_ind + 1, i_ind + 3] -= H_block13
+        H[j_ind + 2, i_ind + 1] -= H_block21
+        H[j_ind + 2, i_ind + 2] -= H_block22
+        H[j_ind + 2, i_ind + 3] -= H_block23
+        H[j_ind + 3, i_ind + 1] -= H_block31
+        H[j_ind + 3, i_ind + 2] -= H_block32
+        H[j_ind + 3, i_ind + 3] -= H_block33
     end
     for k in 1:ne
         i, j = egs[1, k], egs[2, k]
         i_ind, j_ind = (i - 1) * 3, (j - 1) * 3
-        # Compute local Hessian
-        u = u_array[1:3, k]
-        L = u_array[4, k]
-        H_local = (youngs[k] / rls[k]) * (I3 + (rls[k] / L) * (u * transpose(u) - I3))
+        # Read the H[i,j] block (already filled earlier)
+        Hij11 = H[i_ind + 1, j_ind + 1]
+        Hij12 = H[i_ind + 1, j_ind + 2]
+        Hij13 = H[i_ind + 1, j_ind + 3]
+        Hij21 = H[i_ind + 2, j_ind + 1]
+        Hij22 = H[i_ind + 2, j_ind + 2]
+        Hij23 = H[i_ind + 2, j_ind + 3]
+        Hij31 = H[i_ind + 3, j_ind + 1]
+        Hij32 = H[i_ind + 3, j_ind + 2]
+        Hij33 = H[i_ind + 3, j_ind + 3]
+        # Apply symmetric block scatter
+        H[i_ind + 1, i_ind + 1] -= Hij11
+        H[i_ind + 1, i_ind + 2] -= Hij12
+        H[i_ind + 1, i_ind + 3] -= Hij13
+        H[i_ind + 2, i_ind + 1] -= Hij21
+        H[i_ind + 2, i_ind + 2] -= Hij22
+        H[i_ind + 2, i_ind + 3] -= Hij23
+        H[i_ind + 3, i_ind + 1] -= Hij31
+        H[i_ind + 3, i_ind + 2] -= Hij32
+        H[i_ind + 3, i_ind + 3] -= Hij33
+
+        H[j_ind + 1, j_ind + 1] -= Hij11
+        H[j_ind + 1, j_ind + 2] -= Hij12
+        H[j_ind + 1, j_ind + 3] -= Hij13
+        H[j_ind + 2, j_ind + 1] -= Hij21
+        H[j_ind + 2, j_ind + 2] -= Hij22
+        H[j_ind + 2, j_ind + 3] -= Hij23
+        H[j_ind + 3, j_ind + 1] -= Hij31
+        H[j_ind + 3, j_ind + 2] -= Hij32
+        H[j_ind + 3, j_ind + 3] -= Hij33
+    end
+end
+
+function hessian2!(H, basis, points, egs, rls, iis, youngs)
+    fill!(H, 0.0)  # Ensure H starts from zero
+    bt = transpose(basis)
+    ne = size(egs, 2)
+    for k in 1:ne
+        i, j = egs[1, k], egs[2, k]
+        i_ind, j_ind = (i - 1) * 3, (j - 1) * 3
+        # Compute displacement with periodic adjustments
+        d = points[1 + j_ind : 3 + j_ind] + iis[1:3, k] - points[1 + i_ind : 3 + i_ind]
+        # Transform displacement into basis coordinates
+        r_local = basis*d
+        L = norm(r_local)
+        # Compute unit vector
+        u = r_local/L
+        H_local = (youngs[k] / rls[k]) * (I + (rls[k] / L) * (u * transpose(u) - I))
         # Transform to global coordinates
         H_block = basis * H_local * bt
         # Scatter into pre-allocated Hessian

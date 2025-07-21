@@ -23,7 +23,7 @@ function visualize_net(net::Network)
     tens /= tension_range
     data = []
     tension_data = zeros(0)
-    long_diagonal = [sum(col) for col in eachcol(net.basis)]
+    long_diagonal = [sum(row) for row in eachrow(net.basis)]
     Axis3(f[1, 1], limits = (0, long_diagonal[1], 0, long_diagonal[2], 0, long_diagonal[3]), aspect = (long_diagonal[1], long_diagonal[2], long_diagonal[3]))
     for i in eachindex(es)
         e = es[i]

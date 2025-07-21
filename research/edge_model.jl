@@ -80,6 +80,7 @@ function hop_zeros!(net, em)
         ElasticNetworks.add_edge!(net, min(j1, i), max(j1, i), net.rest_lengths[e]/2)
         ElasticNetworks.add_edge!(net, min(j2, i), max(j2, i), net.rest_lengths[e]/2)
         ElasticNetworks.rem_edge!(net, j1, j2)
+        pop!(em, e)
         hop_count += 1
     end
     return hop_count
@@ -143,7 +144,11 @@ function evolve_w_hops(net, t_range, θ, rand_rate, steric_rad, seed_conc, max_r
     end
 end
 
+#=net = load_network("data/edge_model_sheared_50.jld2")
+evolve_w_hops(net, 50:20000, 0.001, 1.0, 1.0, 0.5, 3.0, 0.05, "research/edge_model_configs/")=#
+
+
 net = load_network("data/threshold0x001_conc0.5_maxrl3_epsilon0x05_17500.jld2")
-evolve_w_hops(net, 1:20000, 0.001, 1.0, 1.0, 0.5, 3.0, 0.05, "research/edge_model_configs/")
-
-
+net.basis *= ([0 0.1 0; 0 0 0; 0 0 0] + I)
+relax!(net, show_trace = true)
+evolve_w_hops(net, 0:20000, 0.001, 1.0, 1.0, 0.5, 3.0, 0.05, "research/edge_model_configs/")
