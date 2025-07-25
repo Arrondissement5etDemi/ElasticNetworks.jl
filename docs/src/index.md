@@ -1,4 +1,3 @@
-# ElasticNetworks.jl Documentation
 
 ```@contents
 ```
@@ -18,14 +17,14 @@ energy_gradient(net::Network)
 energy_hessian(net::Network)
 ```
 
-## Network modifiers: geometry only
-```@docs
-relax(net; show_trace=false, g_tol=1e-6)
-```
-
 ## Compute elastic moduli
 ```@docs
 moduli(net::Network)
+```
+
+## Network modifiers: geometry only
+```@docs
+relax(net; show_trace=false, g_tol=1e-6)
 ```
 
 ## Network modifiers: topology
