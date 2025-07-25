@@ -300,17 +300,12 @@ function hessian2!(H, basis, points, egs, rls, iis, youngs)
     for k in 1:ne
         i, j = egs[1, k], egs[2, k]
         i_ind, j_ind = (i - 1) * 3, (j - 1) * 3
-        # Compute displacement with periodic adjustments
         d = points[1 + j_ind : 3 + j_ind] + iis[1:3, k] - points[1 + i_ind : 3 + i_ind]
-        # Transform displacement into basis coordinates
         r_local = basis*d
         L = norm(r_local)
-        # Compute unit vector
         u = r_local/L
         H_local = (youngs[k] / rls[k]) * (I + (rls[k] / L) * (u * transpose(u) - I))
-        # Transform to global coordinates
         H_block = basis * H_local * bt
-        # Scatter into pre-allocated Hessian
         for α in 1:3, β in 1:3
             H[i_ind + α, i_ind + β] += H_block[α, β]
             H[j_ind + α, j_ind + β] += H_block[α, β]

@@ -14,6 +14,7 @@ module ElasticNetworks
     export(pluck_out_edge!)
     export(plug_in_edge!)
     export(simplify_net!)
+    export(stress_tensor)
     export(moduli)
     export(visualize_net)
     export(visualize_eigenmode)

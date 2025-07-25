@@ -68,6 +68,56 @@ function moduli(net::Network)
     return B, G, c1111, c2222, c3333, c1212, c1313, c2323, c1122, c1133, c2233
 end
 
-
+"""
+    stress_tensor(net::Network)
+    Computes the stress tensor of an elastic network by applying infinitesimal deformations and extracting the stress response.
+# Description
+This function relaxes the network to its equilibrium state and then computes the stress tensor by applying small 
+deformations in various modes. The stress tensor is derived from the energy response to these deformations using automatic differentiation.
+# Arguments     
+- `net::Network` : The elastic network structure    
+# Behavior
+1. **Relaxation** - Minimizes the elastic energy of the network to find a stable configuration.
+2. **Deformation Basis Construction** - Defines strain modes using deformation basis functions.     
+3. **Hessian Computation** - Computes the Hessian of the system at equilibrium.
+4. **Energy Perturbation & Differentiation** - Uses automatic differentiation (`ForwardDiff 
+.hessian`) to compute energy responses to small deformations.   
+5. **Stress Tensor Extraction** - Computes the stress tensor components from the energy responses.
+# Returns
+- `σ::Matrix{Float64}` : The stress tensor, a 3x3   matrix representing the stress state of the network.                
+                
+"""
+function stress_tensor(net::Network)
+    relax!(net)
+    basis, points, edge_nodes, rls, iis, youngs = net_info_primitive(net)
+    σ = zeros(3, 3)
+    n = nv(net.g)
+    H = zeros(3*n, 3*n)
+    hessian!(H, basis, points, edge_nodes, rls, iis, youngs)
+    deformed_bases = Dict{String, Function}()
+    deformed_bases["11"] = ϵ -> ([ϵ 0 0; 0 0 0; 0 0 0] + I)*basis
+    deformed_bases["22"] = ϵ -> ([0 0 0; 0 ϵ 0; 0 0 0] + I)*basis
+    deformed_bases["33"] = ϵ -> ([0 0 0; 0 0 0; 0 0 ϵ] + I)*basis
+    deformed_bases["12"] = ϵ -> ([0 ϵ 0; 0 0 0; 0 0 0] + I)*basis
+    deformed_bases["13"] = ϵ -> ([0 0 ϵ; 0 0 0; 0 0 0] + I)*basis
+    deformed_bases["23"] = ϵ -> ([0 0 0; 0 0 ϵ; 0 0 0] + I)*basis
+    function make_curry_function(component)
+        function curry(ϵ)
+            deformed_basis = deformed_bases[component](ϵ[1])
+            F = -gradient(deformed_basis, points, edge_nodes, rls, iis, youngs)
+            nonaffine_displacements = qr(H, Val(true)) \ F
+            return elastic_energy(deformed_basis, points + nonaffine_displacements, edge_nodes, rls, iis, youngs)
+        end
+        return curry
+    end
+    for i = 1:3, j = 1:3
+        if i ≤ j
+            σ[i, j] = ForwardDiff.gradient(make_curry_function("$i$j"), [0])[1]
+        else
+            σ[i, j] = σ[j, i]
+        end
+    end
+    return σ/det(basis)
+end
 
 
