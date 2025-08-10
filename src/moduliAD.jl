@@ -1,33 +1,64 @@
 include("elastic_network.jl")
 using IterativeSolvers
 
+function elasticity_tensor(net::Network)
+    relax!(net)
+    basis, points, edge_nodes, rls, iis, youngs = net_info_primitive(net)
+    v = det(basis)
+    n = nv(net.g)
+    H = zeros(3*n, 3*n)
+    hessian!(H, basis, points, edge_nodes, rls, iis, youngs)
+    deform_basis(ϵ) = [ϵ[1]+1 ϵ[4] ϵ[7]; ϵ[2] ϵ[5]+1 ϵ[8]; ϵ[3] ϵ[6] ϵ[9]+1]*basis
+    function energy_curry(ϵ)
+        deformed_basis = deform_basis(ϵ)
+        F = -gradient(deformed_basis, points, edge_nodes, rls, iis, youngs)
+        nonaffine_displacements = qr(H, Val(true)) \ F
+        return elastic_energy(deformed_basis, points + nonaffine_displacements, edge_nodes, rls, iis, youngs)
+    end
+    return ForwardDiff.hessian(energy_curry, zeros(9))/v
+end
+
 """
-    moduli(net::Network)
+    moduli(net::Network) → (B::Float64, G::Float64, voigt_c::Matrix{Float64})
 
-Computes the elastic moduli of a network by applying small deformations and extracting the stiffness components.
+Computes the bulk modulus `B`, shear modulus `G`, and the full 6×6 elasticity tensor in Voigt notation for the given elastic network `net`.
 
-# Description
-This function performs an energy minimization (`relax!`) and then computes elastic moduli using automatic differentiation. The moduli components are obtained by introducing small strain perturbations in various deformation modes and measuring the corresponding energy response.
+This function:
+- Constructs the full 9×9 elasticity tensor `C` using `elasticity_tensor(net)`
+- Converts `C` into 6×6 Voigt notation (`voigt_c`) using standard index mapping
+- Computes:
+    - `B`: Bulk modulus, averaged over normal components
+    - `G`: Shear modulus, averaged over shear and deviatoric components
 
 # Arguments
-- `net::Network` : The elastic network structure 
-
-# Behavior
-1. **Relaxation** - Minimizes the elastic energy of the network to find a stable configuration.
-2. **Deformation Basis Construction** - Defines strain modes using deformation basis functions.
-3. **Hessian Computation** - Computes the Hessian of the system at equilibrium.
-4. **Energy Perturbation & Differentiation** - Uses automatic differentiation (`ForwardDiff.hessian`) to compute energy responses to small deformations.
-5. **Moduli Extraction** - Computes bulk modulus (`B`), shear modulus (`G`), and individual elastic constants.
+- `net::Network`: An elastic network with defined geometry, rest lengths, and stiffnesses
 
 # Returns
-- `B::Float64` : Bulk modulus.
-- `G::Float64` : Shear modulus.
-- `c1111::Float64`, `c2222::Float64`, `c3333::Float64` : Normal stress components.
-- `c1212::Float64`, `c1313::Float64`, `c2323::Float64` : Shear stress components.
-- `c1122::Float64`, `c1133::Float64`, `c2233::Float64` : Mixed stress components.
+- `B::Float64`: Isotropic bulk modulus
+- `G::Float64`: Isotropic shear modulus
+- `voigt_c::Matrix{Float64}`: 6×6 elasticity tensor in Voigt notation
 
+Note: Assumes the network is sufficiently isotropic for scalar moduli to be meaningful.
 """
 function moduli(net::Network)
+    C = elasticity_tensor(net)
+    #Voigt notations
+    voigt = Dict{Int, Int}(1 => 1, 2 => 5, 3 => 9, 4 => 6, 5 => 3, 6 => 2)
+    voigt_c = zeros(6, 6)
+    for i = 1:6, j = 1:6
+        if j ≥ i
+            voigt_c[i, j] = C[voigt[i], voigt[j]] 
+        else
+            voigt_c[i, j] = voigt_c[j, i]
+        end
+    end
+    B = (voigt_c[1, 1] + voigt_c[2, 2] + voigt_c[3, 3] + 2*(voigt_c[1, 2] + voigt_c[2, 3] + voigt_c[1, 3]))/9
+    G = ((voigt_c[1, 1] + voigt_c[2, 2] + voigt_c[3, 3]) - (voigt_c[1, 2] + voigt_c[2, 3] + voigt_c[1, 3])
+        + 3*(voigt_c[4, 4] + voigt_c[5, 5] + voigt_c[6, 6]))/15
+    return B, G, voigt_c
+end
+
+function moduli_legacy(net::Network)
     relax!(net)
     basis, points, edge_nodes, rls, iis, youngs = net_info_primitive(net)
     deformed_bases = Dict{String, Function}()

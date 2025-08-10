@@ -174,7 +174,7 @@ function hessian!(H, basis, points, egs, rls, iis, youngs)
     I3 = Matrix{Float64}(I, 3, 3)  # 3×3 identity matrix
     bt = transpose(basis)
     ne = size(egs, 2)
-    @tturbo for k in 1:ne
+    for k in 1:ne
         i, j = egs[1, k], egs[2, k]
         i_ind, j_ind = (i - 1) * 3, (j - 1) * 3
         # Compute displacement with periodic adjustments
